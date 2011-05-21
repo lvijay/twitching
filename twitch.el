@@ -1,15 +1,15 @@
 ; -*- mode: emacs-lisp; paredit-mode: t; -*-
 ;;; twitch.el --- Twitter client library.
-
+;;;
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
-
+;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
 ;;; Version: 0.0.1
 ;;; Keywords: twitter
 ;;; Contributors:
-
+;;;
 ;;; This file is NOT part of GNU Emacs.
-
+;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
 ;;; the Free Software Foundation; either version 3, or (at your option)
@@ -46,11 +46,79 @@
 
 (defvar *twitch-include-entities* t "sets include_entities to 1 or 0")
 
+(defstruct twitter-user
+  utc-offset
+  id
+  screen-name
+  name
+  profile-image-url
+  listed-count
+  following
+  website
+  time-zone
+  tweets-count
+  followers-count
+  location
+  description
+  friends-count
+  verified
+  geo-enabled
+  lang)
+
+(defstruct twitter-status
+  id
+  retweet-count
+  user
+  created-at
+  in-reply-to-status-id
+  in-reply-to-user-id
+  source
+  truncatedp
+  geo
+  coordinates
+  contributors
+  text
+  entities)
+
 ;;;###autoload
 (defun twitch-get-home-timeline ()
-  (twitch-get-statuses "http://api.twitter.com/1/statuses/home_timeline.json" (twitch-default-params) t))
+  "Gets the current user's home timeline."
+  (interactive)
+  (twitch-check-keys)
+  (let ((url "http://api.twitter.com/1/statuses/home_timeline.json")
+        (authenticate-p t)
+        (params (twitch-default-params)))
+    (twitch-get-statuses url
+                         params
+                         authenticate-p)))
 
-(defun twitch-get-statuses (url params-alist authenticate-p)
+(defun twitch-check-keys ()
+  "Checks if *twitch-consumer-key* *twitch-consumer-secret*
+*twitch-access-token* *twitch-access-token-secret* have been set.
+Requests user input if they haven't."
+  (unless *twitch-consumer-key*
+    (setq *twitch-consumer-key*
+          (read-string "Enter consumer key: ")))
+  (unless *twitch-consumer-secret*
+    (setq *twitch-consumer-secret*
+          (read-string "Enter consumer secret: ")))
+  (unless *twitch-access-token*
+    (setq *twitch-access-token*
+          (read-string "Enter access token: ")))
+  (unless *twitch-access-token-secret*
+    (setq *twitch-access-token-secret*
+          (read-string "Enter access token secret: "))))
+
+(defun twitch-get-statuses (url params-alist authenticatep &optional method)
+  "Main business logic method.
+
+Makes a call to URL with PARAMS-ALIST added to the query-string.
+
+AUTHENTICATEP is t then authentication is enabled.  Currently
+unused.
+
+METHOD determines the http method GET or POST.  Default
+is GET."
   (let* ((url (twitch-form-url url params-alist))
          (access-token (make-oauth-access-token
                         :consumer-key *twitch-consumer-key*
@@ -61,16 +129,41 @@
          (req (oauth-make-request url
                                   (oauth-access-token-consumer-key access-token)
                                   (oauth-access-token-auth-t access-token))))
-    (setf (oauth-request-http-method req) "GET")
-    (oauth-sign-request-hmac-sha1 req (oauth-access-token-consumer-secret access-token))
+    (setf (oauth-request-http-method req) (or method "GET"))
+    (oauth-sign-request-hmac-sha1 req (oauth-access-token-consumer-secret
+                                       access-token))
     (oauth-request-to-header req)
     (let* ((url-request-extra-headers (if url-request-extra-headers 
                                           (append url-request-extra-headers 
                                                   (oauth-request-to-header req))
                                         (oauth-request-to-header req)))
-           (url-request-method (oauth-request-http-method req)))
-      (view-buffer (url-retrieve-synchronously (oauth-request-url req)))
-      )))
+           (url-request-method (oauth-request-http-method req))
+           response)
+      (url-retrieve (oauth-request-url req)
+                    (lambda (status)
+                      (setq response (buffer-string))))
+      (while (null response)
+        (sleep-for 1))
+      (when (twitch-request-success-p response)
+        (let ((response-body (twitch-extract-response-body response))
+              (json-array-type 'list))
+          (let ((statuses (json-read-from-string response-body)))
+            statuses))))))
+
+(defun twitch-request-success-p (response)
+  "Returns t if RESPONSE contains 'HTTP/1.1 200 OK'"
+  (let* ((resp *twitch-response*)
+         (lines (split-string resp "[\n]" t)))
+    (string= (car lines) "HTTP/1.1 200 OK")))
+
+(defun twitch-extract-response-body (response)
+  "Extracts the response body, ignoring the headers from
+RESPONSE."
+  (let ((content-start (string-match "\n\n" response)))
+    (when (>= content-start 0)
+      (let ((content (substring response (+ content-start 2)))
+            (json-array-type 'list))
+        (json-read-from-string content)))))
 
 (defun twitch-form-url (url params-alist)
   "Form the full url with its query parameters from URL and PARAMS-ALIST"
@@ -123,6 +216,15 @@ as follows:
         nil
       (let ((end (substring string (- string-len substring-len))))
         (string= substring end)))))
+
+(defun string-starts-with-p (string substring)
+  "Return t if STRING starts with SUBSTRING."
+  (let ((string-len (length string))
+        (substr-len (length substring)))
+    (if (> substr-len string-len)
+        nil
+      (let ((start (substring string 0 substr-len)))
+        (string= substring start)))))
 
 ;; ********* TESTS *********
 
