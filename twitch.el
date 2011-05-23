@@ -46,40 +46,89 @@
 
 (defvar *twitch-include-entities* t "sets include_entities to 1 or 0")
 
-(defstruct twitter-user
-  utc-offset
-  id
-  screen-name
-  name
-  profile-image-url
-  listed-count
-  following
-  website
-  time-zone
-  tweets-count
-  followers-count
-  location
-  description
-  friends-count
-  verified
-  geo-enabled
-  lang)
+(defmacro twitch-defstruct (struct-name fields)
+  "Macro that defines structures representing twitter responses.
+STRUCT-NAME is the name of the represented object.
 
-(defstruct twitter-status
-  id
-  retweet-count
-  user
-  created-at
-  in-reply-to-status-id
-  in-reply-to-user-id
-  source
-  truncatedp
-  geo
-  coordinates
-  contributors
-  text
-  entities)
+FIELDS is a list of triples of the form (json-object-field-name
+struct-field-name key-function).  key-function is optional and by
+default is IDENTITY.  If provided, it must be a function that
+takes one argument."
+  (let ((constructor-name (intern (concat "make-" (symbol-name struct-name))))
+        (new-fun-name (intern (concat "new-" (symbol-name struct-name)))))
+    `(progn
+       (defstruct (,struct-name (:type list)
+                                :named)
+         .,(mapcar (lambda (field-specs)
+                     (let ((fld-name (cadr field-specs)))
+                       fld-name))
+                   fields))
+       (defun ,new-fun-name (json-object)
+         ,(mapconcat (lambda (x) (format "%s" x))
+                     `("Create a new instance of"
+                       ,struct-name "from JSON-OBJECT.")
+                     " ")
+         (,constructor-name
+          .,(mapcan (lambda (field)
+                      (let ((json-field (car field))
+                            (struct-field (intern (concat ":" (symbol-name (cadr field)))))
+                            (key-fn (caddr field)))
+                        (if key-fn
+                            `(,struct-field (funcall ,key-fn (cdr (assoc ',json-field json-object))))
+                          `(,struct-field (cdr (assoc ',json-field json-object))))))
+                    fields))))))
 
+;;; Defines a twitter-user
+(twitch-defstruct twitch-twitter-user
+                  ((created_at created-at)
+                   (geo_enabled geo-enabled-p #'twitch-json-truth-value)
+                   (verified verifiedp #'twitch-json-truth-value)
+                   (following followingp #'twitch-json-truth-value)
+                   (contributors_enabled contributors-enabled-p #'twitch-json-truth-value)
+                   (url url)
+                   (location location)
+                   (id_str id)
+                   (lang lang)
+                   (listed_count listed-count)
+                   (description description)
+                   (screen_name screen-name)
+                   (utc_offset utc-offset)
+                   (notifications notificationsp #'twitch-json-truth-value)
+                   (favourites_count favorites-count)
+                   (statuses_count statuses-count)
+                   (is_translator translatorp #'twitch-json-truth-value)
+                   (name name)
+                   (profile_image_url profile-image-url)
+                   (friends_count friends-count)
+                   (time_zone time-zone)
+                   (follow_request_sent follow-request-sent-p #'twitch-json-truth-value)
+                   (protected protectedp #'twitch-json-truth-value)
+                   (followers_count followers-count)))
+
+;;; Defines a twitter-entity
+(twitch-defstruct twitch-twitter-entity
+                  ((hashtags hashtags)
+                   (user_mentions user-mentions)
+                   (urls urls)))
+
+;;; Defines a twitter-status
+(twitch-defstruct twitch-twitter-status
+                  ((created_at created-at)
+                   (retweeted retweetedp #'twitch-json-truth-value)
+                   (contributors contributors)
+                   (in_reply_to_status_id_str in-reply-to-status-id)
+                   (source source)
+                   (in_reply_to_screen_name in-reply-to-screen-name)
+                   (retweet_count retweet-count)
+                   (favorited favoritedp #'twitch-json-truth-value)
+                   (place place)
+                   (id_str id)
+                   (entities entities #'new-twitch-twitter-entity)
+                   (text text)
+                   (truncated truncatedp #'twitch-json-truth-value)
+                   (user user #'new-twitch-twitter-user)
+                   (geo geo)
+                   (coordinates coordinates)))
 ;;;###autoload
 (defun twitch-get-home-timeline ()
   "Gets the current user's home timeline."
@@ -126,29 +175,37 @@ is GET."
                         :auth-t (make-oauth-t
                                  :token *twitch-access-token*
                                  :token-secret *twitch-access-token-secret*)))
-         (req (oauth-make-request url
-                                  (oauth-access-token-consumer-key access-token)
-                                  (oauth-access-token-auth-t access-token))))
+         (req (oauth-make-request
+               url
+               (oauth-access-token-consumer-key access-token)
+               (oauth-access-token-auth-t access-token))))
     (setf (oauth-request-http-method req) (or method "GET"))
     (oauth-sign-request-hmac-sha1 req (oauth-access-token-consumer-secret
                                        access-token))
-    (oauth-request-to-header req)
-    (let* ((url-request-extra-headers (if url-request-extra-headers 
-                                          (append url-request-extra-headers 
-                                                  (oauth-request-to-header req))
-                                        (oauth-request-to-header req)))
-           (url-request-method (oauth-request-http-method req))
-           response)
-      (url-retrieve (oauth-request-url req)
-                    (lambda (status)
-                      (setq response (buffer-string))))
-      (while (null response)
-        (sleep-for 1))
+    (let* ((url (oauth-request-url req))
+           (headers (oauth-request-to-header req))
+           (request-method (oauth-request-http-method req))
+           (response (url-retrieve-synchronously-as-string
+                      url headers request-method)))
       (when (twitch-request-success-p response)
         (let ((response-body (twitch-extract-response-body response))
               (json-array-type 'list))
           (let ((statuses (json-read-from-string response-body)))
-            statuses))))))
+            (mapcar #'new-twitch-twitter-status statuses)))))))
+
+(defun url-retrieve-synchronously-as-string (url &optional headers request-method)
+  "Retrieves the contents of URL and returns the response as a
+  string.  Passes HEADERS with the request and the request is
+  made as specified in REQUEST-METHOD.  By default REQUEST-METHOD
+  is GET."
+  (let ((url-request-extra-headers (if url-request-extra-headers 
+                                       (append url-request-extra-headers headers)
+                                     headers))
+        (url-request-method (or request-method "GET"))
+        request)
+    (url-retrieve url (lambda (s) (setq response (or (buffer-string) ""))))
+    (while (null response) (sleep-for 1))
+    response))
 
 (defun twitch-request-success-p (response)
   "Returns t if RESPONSE contains 'HTTP/1.1 200 OK'"
@@ -163,7 +220,7 @@ RESPONSE."
     (when (>= content-start 0)
       (let ((content (substring response (+ content-start 2)))
             (json-array-type 'list))
-        (json-read-from-string content)))))
+        content))))
 
 (defun twitch-form-url (url params-alist)
   "Form the full url with its query parameters from URL and PARAMS-ALIST"
@@ -207,6 +264,12 @@ as follows:
           '(("&quot;" . "\"") ("&amp;" . "&") ("&lt;" . "<") ("&gt;" . ">") ("%20" . " "))
           :from-end nil
           :initial-value encoded-string))
+
+(defun twitch-json-truth-value (val)
+  "Returns t or nil depending upon the json truth value of VAL."
+  (cond (:json-false nil)
+        (:json-true t)
+        nil))
 
 (defun string-ends-with-p (string substring)
   "Return t if STRING ends with SUBSTRING"
