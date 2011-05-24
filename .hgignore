@@ -1,0 +1,17 @@
+##############
+syntax: glob #
+##############
+
+## ignore elisp compiled files
+*.elc
+
+## ignore emacs backup files
+*~
+
+## ignore all reverted files
+*.orig
+
+################
+syntax: regexp #
+################
+
