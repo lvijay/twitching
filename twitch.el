@@ -57,7 +57,7 @@ takes one argument."
   (let ((constructor-name (intern (concat "make-" (symbol-name struct-name))))
         (new-fun-name (intern (concat "new-" (symbol-name struct-name)))))
     `(progn
-       (defstruct (,struct-name (:type list)
+       (defstruct (,struct-name (:type vector)
                                 :named)
          .,(mapcar (lambda (field-specs)
                      (let ((fld-name (cadr field-specs)))
