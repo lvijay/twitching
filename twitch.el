@@ -46,7 +46,7 @@
 
 (defvar *twitch-include-entities* t "sets include_entities to 1 or 0")
 
-(defmacro twitch-defstruct (struct-name fields)
+(defmacro twitch-defstruct (struct-name &rest fields)
   "Macro that defines structures representing twitter responses.
 STRUCT-NAME is the name of the represented object.
 
@@ -54,6 +54,7 @@ FIELDS is a list of triples of the form (json-object-field-name
 struct-field-name key-function).  key-function is optional and by
 default is IDENTITY.  If provided, it must be a function that
 takes one argument."
+  (declare (indent 1))
   (let ((constructor-name (intern (concat "make-" (symbol-name struct-name))))
         (new-fun-name (intern (concat "new-" (symbol-name struct-name)))))
     `(progn
@@ -80,55 +81,56 @@ takes one argument."
 
 ;;; Defines a twitter-user
 (twitch-defstruct twitch-twitter-user
-                  ((created_at created-at)
-                   (geo_enabled geo-enabled-p #'twitch-json-truth-value)
-                   (verified verifiedp #'twitch-json-truth-value)
-                   (following followingp #'twitch-json-truth-value)
-                   (contributors_enabled contributors-enabled-p #'twitch-json-truth-value)
-                   (url url)
-                   (location location)
-                   (id_str id)
-                   (lang lang)
-                   (listed_count listed-count)
-                   (description description)
-                   (screen_name screen-name)
-                   (utc_offset utc-offset)
-                   (notifications notificationsp #'twitch-json-truth-value)
-                   (favourites_count favorites-count)
-                   (statuses_count statuses-count)
-                   (is_translator translatorp #'twitch-json-truth-value)
-                   (name name)
-                   (profile_image_url profile-image-url)
-                   (friends_count friends-count)
-                   (time_zone time-zone)
-                   (follow_request_sent follow-request-sent-p #'twitch-json-truth-value)
-                   (protected protectedp #'twitch-json-truth-value)
-                   (followers_count followers-count)))
+  (created_at created-at)
+  (geo_enabled geo-enabled-p #'twitch-json-truth-value)
+  (verified verifiedp #'twitch-json-truth-value)
+  (following followingp #'twitch-json-truth-value)
+  (contributors_enabled contributors-enabled-p #'twitch-json-truth-value)
+  (url url)
+  (location location)
+  (id_str id)
+  (lang lang)
+  (listed_count listed-count)
+  (description description)
+  (screen_name screen-name)
+  (utc_offset utc-offset)
+  (notifications notificationsp #'twitch-json-truth-value)
+  (favourites_count favorites-count)
+  (statuses_count statuses-count)
+  (is_translator translatorp #'twitch-json-truth-value)
+  (name name)
+  (profile_image_url profile-image-url)
+  (friends_count friends-count)
+  (time_zone time-zone)
+  (follow_request_sent follow-request-sent-p #'twitch-json-truth-value)
+  (protected protectedp #'twitch-json-truth-value)
+  (followers_count followers-count))
 
 ;;; Defines a twitter-entity
 (twitch-defstruct twitch-twitter-entity
-                  ((hashtags hashtags)
-                   (user_mentions user-mentions)
-                   (urls urls)))
+  (hashtags hashtags)
+  (user_mentions user-mentions)
+  (urls urls))
 
 ;;; Defines a twitter-status
 (twitch-defstruct twitch-twitter-status
-                  ((created_at created-at)
-                   (retweeted retweetedp #'twitch-json-truth-value)
-                   (contributors contributors)
-                   (in_reply_to_status_id_str in-reply-to-status-id)
-                   (source source)
-                   (in_reply_to_screen_name in-reply-to-screen-name)
-                   (retweet_count retweet-count)
-                   (favorited favoritedp #'twitch-json-truth-value)
-                   (place place)
-                   (id_str id)
-                   (entities entities #'new-twitch-twitter-entity)
-                   (text text)
-                   (truncated truncatedp #'twitch-json-truth-value)
-                   (user user #'new-twitch-twitter-user)
-                   (geo geo)
-                   (coordinates coordinates)))
+  (created_at created-at)
+  (retweeted retweetedp #'twitch-json-truth-value)
+  (contributors contributors)
+  (in_reply_to_status_id_str in-reply-to-status-id)
+  (source source)
+  (in_reply_to_screen_name in-reply-to-screen-name)
+  (retweet_count retweet-count)
+  (favorited favoritedp #'twitch-json-truth-value)
+  (place place)
+  (id_str id)
+  (entities entities #'new-twitch-twitter-entity)
+  (text text)
+  (truncated truncatedp #'twitch-json-truth-value)
+  (user user #'new-twitch-twitter-user)
+  (geo geo)
+  (coordinates coordinates))
+
 ;;;###autoload
 (defun twitch-get-home-timeline ()
   "Gets the current user's home timeline."
@@ -190,8 +192,7 @@ is GET."
       (when (twitch-request-success-p response)
         (let ((response-body (twitch-extract-response-body response))
               (json-array-type 'list))
-          (let ((statuses (json-read-from-string response-body)))
-            (mapcar #'new-twitch-twitter-status statuses)))))))
+          (json-read-from-string response-body))))))
 
 (defun url-retrieve-synchronously-as-string (url &optional headers request-method)
   "Retrieves the contents of URL and returns the response as a
@@ -209,7 +210,7 @@ is GET."
 
 (defun twitch-request-success-p (response)
   "Returns t if RESPONSE contains 'HTTP/1.1 200 OK'"
-  (let* ((resp *twitch-response*)
+  (let* ((resp response)
          (lines (split-string resp "[\n]" t)))
     (string= (car lines) "HTTP/1.1 200 OK")))
 
@@ -296,5 +297,9 @@ as follows:
          (encoded-string (twitch-url-encode original-string))
          (decoded-string (twitch-url-decode encoded-string)))
     (assert (string-equal original-string decoded-string) t)))
+
+;; TESTS end here
+
+(provide 'twitch)
 
 ;;; twitch.el ends here
