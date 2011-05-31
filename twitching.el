@@ -47,16 +47,15 @@
 
 (defun twitching-get-home-timeline ()
   "Fetch home timelines."
-  (let ((twitching-buffer (get-buffer-create "*Twitching*")))
+  (let ((twitching-buffer (get-buffer-create "*Twitching*"))
+        (re-endl (apply #'concat (mapcar #'char-to-string '(10 13)))))
     (with-current-buffer twitching-buffer
       (twitch-get-home-timeline)
       (goto-char (point-max))
       (mapcar (lambda (tweet)
-                (let* ((re-endl (apply #'concat (mapcar #'char-to-string
-                                                        '(10 13))))
-                       (tweet (replace-regexp-in-string re-endl
-                                                        " "
-                                                        (format "%S" tweet))))
+                (let ((tweet (replace-regexp-in-string re-endl
+                                                       " "
+                                                       (format "%S" tweet))))
                   (insert (concat tweet "\n"))))
               (twitch-get-home-timeline))))
   (message "retrieved tweets"))
@@ -90,15 +89,61 @@
     (define-key keymap (kbd "f")   'twitching-create-filter)
     ))
 
+;;; overlay
+(defun twitching-overlay-on-line ()
+  (let ((start (line-beginning-position))
+        (end (line-end-position)))
+    (twitching-overlay start end)))
+
+(defvar *twitching-top-line-category*
+  (put '*twitching-top-line-category* 'face '((:weight bold)
+                                              (:slant italic)
+                                              (:background "ivory3")
+                                              (:foreground "chocolate"))))
+
+(defvar *twitching-status-line-category*
+  (put '*twitching-status-line-category* 'face '((:weight normal)
+                                                 (:background "#EEEEEE")
+                                                 (:foreground "#222222"))))
+
+(defun twitching-overlay (start end)
+  "Renders the line as a tweet specified by the region in START
+  and END."
+  (let* ((tweet-str (buffer-substring-no-properties start end))
+         (status (new-twitch-twitter-status (read tweet-str)))
+         (text (twitch-twitter-status-text status))
+         (created-at (twitch-twitter-status-created-at status))
+         (user (twitch-twitter-status-user status))
+         (screen-name (twitch-twitter-user-screen-name user))
+         (user-name (twitch-twitter-user-name user))
+         (entity (twitch-twitter-status-entities status))
+         (urls (twitch-twitter-entity-urls entity))
+         (overlay (make-overlay start end))
+         (line1 (propertize (concat screen-name " | " user-name " | " created-at)
+                            'category '*twitching-top-line-category*))
+         (line2 (propertize (concat "\n" text)
+                           'category '*twitching-status-line-category*))
+         (display (concat line1 line2)))
+    (overlay-put overlay 'tweet status)
+    (overlay-put overlay 'display display)))
+
 ;;; mode interactive functions
 
 (defun twitching-next-tweet (n)
   "Move down N tweets."
-  (interactive "p"))
+  (interactive "p")
+  (let* ((overlays (overlays-at (point)))
+         (twt-ovrlys (mapcar (lambda (o) (overlay-get o 'tweet)) overlays))
+         (tweet (find t twt-ovrlys :test (lambda (x y) (and x y)))))
+    (unless tweet
+      (mapcar #'delete-overlay overlays)
+      (twitching-overlay-on-line))
+    (goto-line (+ (line-number-at-pos) n))))
 
 (defun twitching-prev-tweet (n)
   "Move down N tweets."
-  (interactive "p"))
+  (interactive "p")
+  (twitching-next-tweet (- n)))
 
 (defun twitching-create-filter ()
   "Create a twitter filter."
