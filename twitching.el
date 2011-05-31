@@ -48,12 +48,11 @@
 (defun twitching-get-home-timeline ()
   "Fetch home timelines."
   (let ((twitching-buffer (get-buffer-create "*Twitching*"))
-        (re-endl (apply #'concat (mapcar #'char-to-string '(10 13)))))
+        (endl-regex (apply #'concat (mapcar #'char-to-string '(?\[ 10 13 ?\])))))
     (with-current-buffer twitching-buffer
-      (twitch-get-home-timeline)
       (goto-char (point-max))
       (mapcar (lambda (tweet)
-                (let ((tweet (replace-regexp-in-string re-endl
+                (let ((tweet (replace-regexp-in-string endl-regex
                                                        " "
                                                        (format "%S" tweet))))
                   (insert (concat tweet "\n"))))
@@ -110,7 +109,7 @@
   "Renders the line as a tweet specified by the region in START
   and END."
   (let* ((tweet-str (buffer-substring-no-properties start end))
-         (status (new-twitch-twitter-status (read tweet-str)))
+         (status (read tweet-str))
          (text (twitch-twitter-status-text status))
          (created-at (twitch-twitter-status-created-at status))
          (user (twitch-twitter-status-user status))

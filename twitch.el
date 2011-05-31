@@ -133,15 +133,16 @@ takes one argument."
 
 ;;;###autoload
 (defun twitch-get-home-timeline ()
-  "Gets the current user's home timeline."
+  "Gets the current user's home timeline as a list of
+`twitch-twitter-status'es."
   (interactive)
   (twitch-check-keys)
   (let ((url "http://api.twitter.com/1/statuses/home_timeline.json")
-        (authenticate-p t)
+        (authenticatep t)
         (params (twitch-default-params)))
     (twitch-get-statuses url
                          params
-                         authenticate-p)))
+                         authenticatep)))
 
 (defun twitch-check-keys ()
   "Checks if *twitch-consumer-key* *twitch-consumer-secret*
@@ -192,7 +193,8 @@ is GET."
       (when (twitch-request-success-p response)
         (let ((response-body (twitch-extract-response-body response))
               (json-array-type 'list))
-          (json-read-from-string response-body))))))
+          (let ((statuses (json-read-from-string response-body)))
+            (mapcar #'new-twitch-twitter-status statuses)))))))
 
 (defun url-retrieve-synchronously-as-string (url &optional headers request-method)
   "Retrieves the contents of URL and returns the response as a
