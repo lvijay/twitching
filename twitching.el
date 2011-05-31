@@ -46,15 +46,23 @@
                             #'twitching-get-home-timeline)))))
 
 (defun twitching-get-home-timeline ()
+  "Fetch home timelines."
   (let ((twitching-buffer (get-buffer-create "*Twitching*")))
     (with-current-buffer twitching-buffer
       (twitch-get-home-timeline)
       (goto-char (point-max))
-      (mapcar #'(lambda (tweet) (insert (format "%S\n" tweet)))
+      (mapcar (lambda (tweet)
+                (let* ((re-endl (apply #'concat (mapcar #'char-to-string
+                                                        '(10 13))))
+                       (tweet (replace-regexp-in-string re-endl
+                                                        " "
+                                                        (format "%S" tweet))))
+                  (insert (concat tweet "\n"))))
               (twitch-get-home-timeline))))
   (message "retrieved tweets"))
 
 (defun twitching-stop ()
+  "Stop the timer that fetches tweets."
   (interactive)
   (if *twitching-timer*
     (progn
