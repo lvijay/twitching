@@ -129,6 +129,8 @@
                                           (:slant italic)
                                           (:underline t))))
 
+(defvar *twitching-fill-column* 70 "Set this to manipulate `fill-column'.")
+
 (defun twitching-overlay (start end)
   "Renders the line as a tweet specified by the region in START
   and END."
@@ -180,8 +182,12 @@
                     (let* ((txt (substring text (first idx) (second idx)))
                            (type (third idx)))
                       (propertize txt 'category (cdr (assoc type properties)))))
-           (reverse result)))
-    (apply #'concat result)))
+                  (reverse result)))
+    (with-temp-buffer
+      (insert (apply #'concat result))
+      (let ((fill-column *twitching-fill-column*))
+        (fill-region (point-min) (point-max)))
+      (buffer-string))))
 
 ;;; mode interactive functions
 (defun twitching-next-tweet (n)
