@@ -146,6 +146,7 @@
     (overlay-put overlay 'display display)))
 
 (defun twitching-decorate-status-text (status)
+  "Decorates the status text."
   (let* ((text (twitch-twitter-status-text status))
          (entity (twitch-twitter-status-entities status))
          (urls (twitch-twitter-entity-urls entity))
@@ -167,12 +168,10 @@
          (ci 0)
          result)
     (dolist (idx indices result)
-      (when (/= ci (car idx))
-        (push `(,ci ,(car idx) text) result))
+      (when (/= ci (car idx)) (push `(,ci ,(car idx) text) result))
       (push idx result)
       (setq ci (cadr idx)))
-    (when (> max ci)
-      (push (list ci max 'text) result))
+    (when (> max ci) (push (list ci max 'text) result))
     (setq result
           (mapcar (lambda (idx)
                     (let* ((txt (substring text (first idx) (second idx)))
@@ -190,7 +189,7 @@
                   (fn (lambda (o) (overlay-get o 'tweet)))
                   (twt-ovrlys (mapcar fn overlays))
                   (tweet (find t twt-ovrlys :test (lambda (x y) (and x y)))))
-             (unless tweet
+             (when (and (not tweet) (not (eobp)))
                (mapcar #'delete-overlay overlays)
                (twitching-overlay-on-line)))))
     (layout)
