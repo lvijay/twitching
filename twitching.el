@@ -82,11 +82,14 @@
   (let ((keymap (make-keymap))
         (nodigits t))
     (suppress-keymap keymap nodigits)
-    (define-key keymap (kbd "n")   'twitching-next-tweet)
+    (define-key keymap (kbd "n") 'twitching-next-tweet)
     (define-key keymap (kbd "C-n") 'twitching-next-tweet)
-    (define-key keymap (kbd "p")   'twitching-prev-tweet)
+    (define-key keymap (kbd "<down>") 'twitching-next-tweet)
+    (define-key keymap (kbd "p") 'twitching-prev-tweet)
     (define-key keymap (kbd "C-p") 'twitching-prev-tweet)
-    (define-key keymap (kbd "f")   'twitching-create-filter)
+    (define-key keymap (kbd "<up>") 'twitching-prev-tweet)
+    (define-key keymap (kbd "f") 'twitching-create-filter)
+    (define-key keymap (kbd "o") 'twitching-open-link)
     ))
 
 ;;; overlay
@@ -203,6 +206,22 @@
   "Move down N tweets."
   (interactive "p")
   (twitching-next-tweet (- n)))
+
+(defun twitching-open-link (n)
+  "Open the N th url in tweet.  Ignored if tweet has no urls."
+  (interactive "P")
+  (when (eolp) (beginning-of-line))
+  (let* ((n (or n 0))
+         (overlays (overlays-at (point)))
+         (fn (lambda (o) (overlay-get o 'tweet)))
+         (overlays (mapcar fn overlays))
+         (tweet (car overlays)))
+    (when tweet
+      (let* ((entity (twitch-twitter-status-entities tweet))
+             (urls (twitch-twitter-entity-urls entity))
+             (url (nth n urls)))
+        (when url
+          (funcall browse-url-browser-function (cdr (assoc 'url url))))))))
 
 (defun twitching-create-filter ()
   "Create a twitter filter."
