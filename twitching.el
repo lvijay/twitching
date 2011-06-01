@@ -233,12 +233,15 @@ takes one argument."
          (screen-name (twitching-user-screen-name user))
          (user-name (twitching-user-name user))
          (overlay (make-overlay start end))
+         (favoritedp (twitching-status-favoritedp status))
          (newline (propertize "\n" 'face '((:background "white")
                                            (:foreground "black"))))
          (spaces (twitching-spaces))
          (sep " | ")
-         (line1 (propertize (concat screen-name sep user-name sep created-at)
-                            'category '*twitching-top-line-category*))
+         (line1 (propertize
+                 (concat screen-name sep user-name sep created-at
+                         (if favoritedp " | (*)" ""))
+                 'category '*twitching-top-line-category*))
          (line2 (twitching-decorate-status-text status))
          (display (concat line1 newline line2 newline spaces)))
     (overlay-put overlay 'tweet status)
@@ -308,6 +311,7 @@ takes one argument."
     (define-key keymap (kbd "<up>") 'twitching-prev-tweet)
     (define-key keymap (kbd "k")    'twitching-prev-tweet)
     (define-key keymap (kbd "f") 'twitching-create-filter)
+    (define-key keymap (kbd "s") 'twitching-favorite-tweet)
     (define-key keymap (kbd "o") 'twitching-open-link)
     keymap))
 
@@ -316,23 +320,24 @@ takes one argument."
 
 
 ;;; Mode interactive functions
+(defun twitching-layout (point)
+  (let* ((overlays (overlays-at point))
+         (overlay (car overlays))
+         (tweet (and overlay (overlay-get overlay 'tweet))))
+    (when (and (not tweet) (not (eobp)))
+      (mapcar #'delete-overlay overlays)
+      (twitching-overlay-on-line))))
+
 (defun twitching-next-tweet (n)
   "Move down N tweets."
   (interactive "p")
-  (flet ((layout ()
-           (let* ((overlays (overlays-at (point)))
-                  (fn (lambda (o) (overlay-get o 'tweet)))
-                  (twt-ovrlys (mapcar fn overlays))
-                  (tweet (find t twt-ovrlys :test (lambda (x y) (and x y)))))
-             (when (and (not tweet) (not (eobp)))
-               (mapcar #'delete-overlay overlays)
-               (twitching-overlay-on-line)))))
-    (layout)                            ; layout current line
+  (flet ()
+    (twitching-layout (point))          ; layout current line
     (let ((pos (plusp n))
           (n (abs n)))
       (dotimes (i n)                    ; layout all interim lines
         (goto-line (funcall (if pos #'1+ #'1-) (line-number-at-pos)))
-        (layout)))))
+        (twitching-layout (point))))))
 
 (defun twitching-prev-tweet (n)
   "Move down N tweets."
@@ -355,6 +360,19 @@ takes one argument."
         (if url
             (funcall browse-url-browser-function (cdr (assoc 'url url)))
           (message "No URLs in this tweet."))))))
+
+(defun twitching-favorite-tweet (point)
+  "Favorite or unfavorite the tweet at POINT."
+  (interactive "d")
+  (let* ((overlay (car (overlays-at (point))))
+         (tweet (overlay-get overlay 'tweet)))
+    (if tweet
+        (progn
+          (setq tweet (twitching-star-tweet tweet))
+          (when tweet
+            (overlay-put overlay 'tweet tweet)
+            (twitching-layout point)))
+      (message "No tweet at point."))))
 
 (defun twitching-create-filter ()
   "Create a twitter filter."
@@ -436,10 +454,24 @@ is GET."
         (let ((statuses (json-read-from-string response-body)))
           (mapcar #'new-twitching-status statuses))))))
 
+(defun twitching-star-tweet (tweet)
+  "Favorite or Unfavorite TWEET depending upon its favorited status."
+  (let* ((favoritedp (twitching-status-favoritedp tweet))
+         (id (twitching-status-id tweet))
+         (url (concat "http://api.twitter.com/1/favorites"
+                      (if favoritedp "/destroy/" "/create/")
+                      id
+                      ".json"))
+         (response (twitching-oauth-get-http-response url nil "POST")))
+    (when (twitching-request-success-p response)
+      (let* ((body (twitching-extract-response-body response))
+             (status (json-read-from-string body)))
+        (new-twitching-status status)))))
+
 (defun twitching-oauth-get-http-response (url params method)
   "Form an oauth request from URL with PARAMS and METHOD and
 return the response as a string."
-  (let* ((url (twitching-form-url url params-alist))
+  (let* ((url (twitching-form-url url params))
          (req (make-twitching-oauth-request url)))
     (setf (oauth-request-http-method req) method)
     (oauth-sign-request-hmac-sha1 req (oauth-access-token-consumer-secret
