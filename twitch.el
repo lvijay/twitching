@@ -210,7 +210,7 @@ GET."
                                        (append url-request-extra-headers headers)
                                      headers))
         (url-request-method (or request-method "GET"))
-        request)
+        response)
     (url-retrieve url (lambda (s) (setq response (or (buffer-string) ""))))
     (while (null response) (sleep-for 1))
     response))
