@@ -36,6 +36,7 @@
 
 ;;;###autoload
 (defun twitching-to-get-my-tweets ()
+  "Start timer to fetch home timeline."
   (interactive)
   (labels ((mintos (min) (print (* min 60))))
     (if *twitching-timer*
@@ -46,13 +47,13 @@
                             #'twitching-get-home-timeline)))))
 
 (defun twitching-get-home-timeline ()
-  "Fetch home timelines."
-  (let ((twitching-buffer (get-buffer-create "*Twitching*"))
-        (endl-regex (apply #'concat (mapcar #'char-to-string '(?\[ 10 13 ?\])))))
+  "Fetch home timeline."
+  (interactive)
+  (let ((twitching-buffer (get-buffer-create "*Twitching*")))
     (with-current-buffer twitching-buffer
       (goto-char (point-max))
       (mapcar (lambda (tweet)
-                (let ((tweet (replace-regexp-in-string endl-regex
+                (let ((tweet (replace-regexp-in-string "[\r\n]"
                                                        " "
                                                        (format "%S" tweet))))
                   (insert (concat tweet "\n"))))
@@ -97,13 +98,13 @@
 (defvar *twitching-top-line-category*
   (put '*twitching-top-line-category* 'face '((:weight bold)
                                               (:slant italic)
-                                              (:background "ivory3")
+                                              (:background "white")
                                               (:foreground "chocolate"))))
 
 (defvar *twitching-status-line-category*
   (put '*twitching-status-line-category* 'face '((:weight normal)
-                                                 (:background "#EEEEEE")
-                                                 (:foreground "#222222"))))
+                                                 (:background "white")
+                                                 (:foreground "red4"))))
 
 (defun twitching-overlay (start end)
   "Renders the line as a tweet specified by the region in START
@@ -118,26 +119,33 @@
          (entity (twitch-twitter-status-entities status))
          (urls (twitch-twitter-entity-urls entity))
          (overlay (make-overlay start end))
-         (line1 (propertize (concat screen-name " | " user-name " | " created-at)
+         (sep " | ")
+         (line1 (propertize (concat screen-name sep user-name sep created-at)
                             'category '*twitching-top-line-category*))
-         (line2 (propertize (concat "\n" text)
+         (line2 (propertize (concat text)
                            'category '*twitching-status-line-category*))
-         (display (concat line1 line2)))
+         (display (concat line1 "\n" line2)))
     (overlay-put overlay 'tweet status)
     (overlay-put overlay 'display display)))
 
 ;;; mode interactive functions
-
 (defun twitching-next-tweet (n)
   "Move down N tweets."
   (interactive "p")
-  (let* ((overlays (overlays-at (point)))
-         (twt-ovrlys (mapcar (lambda (o) (overlay-get o 'tweet)) overlays))
-         (tweet (find t twt-ovrlys :test (lambda (x y) (and x y)))))
-    (unless tweet
-      (mapcar #'delete-overlay overlays)
-      (twitching-overlay-on-line))
-    (goto-line (+ (line-number-at-pos) n))))
+  (flet ((layout ()
+           (let* ((overlays (overlays-at (point)))
+                  (fn (lambda (o) (overlay-get o 'tweet)))
+                  (twt-ovrlys (mapcar fn overlays))
+                  (tweet (find t twt-ovrlys :test (lambda (x y) (and x y)))))
+             (unless tweet
+               (mapcar #'delete-overlay overlays)
+               (twitching-overlay-on-line)))))
+    (layout)
+    (let ((pos (plusp n))
+          (n (abs n)))
+      (dotimes (i n)
+        (goto-line (funcall (if pos #'1+ #'1-) (line-number-at-pos)))
+        (layout)))))
 
 (defun twitching-prev-tweet (n)
   "Move down N tweets."
