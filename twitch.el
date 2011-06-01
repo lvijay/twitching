@@ -140,9 +140,14 @@ takes one argument."
   (let ((url "http://api.twitter.com/1/statuses/home_timeline.json")
         (authenticatep t)
         (params (twitch-default-params)))
-    (twitch-get-statuses url
-                         params
-                         authenticatep)))
+    (let ((statuses (twitch-get-statuses url
+                                         params
+                                         authenticatep)))
+      (when statuses
+        (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
+                               statuses :key #'twitch-twitter-status-id)))
+          (when highest (setq *twitch-since-id* highest))))
+      statuses)))
 
 (defun twitch-check-keys ()
   "Checks if *twitch-consumer-key* *twitch-consumer-secret*
@@ -198,9 +203,9 @@ is GET."
 
 (defun url-retrieve-synchronously-as-string (url &optional headers request-method)
   "Retrieves the contents of URL and returns the response as a
-  string.  Passes HEADERS with the request and the request is
-  made as specified in REQUEST-METHOD.  By default REQUEST-METHOD
-  is GET."
+string.  Passes HEADERS with the request and the request is made
+as specified in REQUEST-METHOD.  By default REQUEST-METHOD is
+GET."
   (let ((url-request-extra-headers (if url-request-extra-headers 
                                        (append url-request-extra-headers headers)
                                      headers))
