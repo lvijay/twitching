@@ -80,7 +80,7 @@ takes one argument."
                     fields))))))
 
 ;;; Defines a twitter-user
-(twitch-defstruct twitch-twitter-user
+(twitch-defstruct twitch-user
   (created_at created-at)
   (geo_enabled geo-enabled-p #'twitch-json-truth-value)
   (verified verifiedp #'twitch-json-truth-value)
@@ -107,13 +107,13 @@ takes one argument."
   (followers_count followers-count))
 
 ;;; Defines a twitter-entity
-(twitch-defstruct twitch-twitter-entity
+(twitch-defstruct twitch-entity
   (hashtags hashtags)
   (user_mentions user-mentions)
   (urls urls))
 
 ;;; Defines a twitter-status
-(twitch-defstruct twitch-twitter-status
+(twitch-defstruct twitch-status
   (created_at created-at)
   (retweeted retweetedp #'twitch-json-truth-value)
   (contributors contributors)
@@ -124,17 +124,17 @@ takes one argument."
   (favorited favoritedp #'twitch-json-truth-value)
   (place place)
   (id_str id)
-  (entities entities #'new-twitch-twitter-entity)
+  (entities entities #'new-twitch-entity)
   (text text)
   (truncated truncatedp #'twitch-json-truth-value)
-  (user user #'new-twitch-twitter-user)
+  (user user #'new-twitch-user)
   (geo geo)
   (coordinates coordinates))
 
 ;;;###autoload
 (defun twitch-get-home-timeline ()
   "Gets the current user's home timeline as a list of
-`twitch-twitter-status'es."
+`twitch-status'es."
   (interactive)
   (twitch-check-keys)
   (let ((url "http://api.twitter.com/1/statuses/home_timeline.json")
@@ -145,7 +145,7 @@ takes one argument."
                                          authenticatep)))
       (when statuses
         (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
-                               statuses :key #'twitch-twitter-status-id)))
+                               statuses :key #'twitch-status-id)))
           (when highest (setq *twitch-since-id* highest))))
       statuses)))
 
@@ -199,7 +199,7 @@ is GET."
         (let ((response-body (twitch-extract-response-body response))
               (json-array-type 'list))
           (let ((statuses (json-read-from-string response-body)))
-            (mapcar #'new-twitch-twitter-status statuses)))))))
+            (mapcar #'new-twitch-status statuses)))))))
 
 (defun url-retrieve-synchronously-as-string (url &optional headers request-method)
   "Retrieves the contents of URL and returns the response as a
@@ -296,16 +296,6 @@ as follows:
         nil
       (let ((start (substring string 0 substr-len)))
         (string= substring start)))))
-
-;; ********* TESTS *********
-
-(when nil
-  (let* ((original-string "5 > 3 && 3 < 4")
-         (encoded-string (twitch-url-encode original-string))
-         (decoded-string (twitch-url-decode encoded-string)))
-    (assert (string-equal original-string decoded-string) t)))
-
-;; TESTS end here
 
 (provide 'twitch)
 
