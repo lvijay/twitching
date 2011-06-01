@@ -313,7 +313,8 @@ takes one argument."
 (define-derived-mode twitching-mode nil "Twitching"
   "Major mode for viewing tweets. \\{twitching-mode-map}")
 
-;;; mode interactive functions
+
+;;; Mode interactive functions
 (defun twitching-next-tweet (n)
   "Move down N tweets."
   (interactive "p")
@@ -325,10 +326,10 @@ takes one argument."
              (when (and (not tweet) (not (eobp)))
                (mapcar #'delete-overlay overlays)
                (twitching-overlay-on-line)))))
-    (layout)
+    (layout)                            ; layout current line
     (let ((pos (plusp n))
           (n (abs n)))
-      (dotimes (i n)
+      (dotimes (i n)                    ; layout all interim lines
         (goto-line (funcall (if pos #'1+ #'1-) (line-number-at-pos)))
         (layout)))))
 
@@ -350,8 +351,9 @@ takes one argument."
       (let* ((entity (twitching-status-entities tweet))
              (urls (twitching-entity-urls entity))
              (url (nth n urls)))
-        (when url
-          (funcall browse-url-browser-function (cdr (assoc 'url url))))))))
+        (if url
+            (funcall browse-url-browser-function (cdr (assoc 'url url)))
+          (message "No URLs in this tweet."))))))
 
 (defun twitching-create-filter ()
   "Create a twitter filter."
@@ -497,27 +499,6 @@ that return statuses."
       (setq params (acons "include_entities" "1" params)))
     params))
 
-(defun twitching-url-encode (string)
-  "Same as url-insert-entities-in-string, but in addition,
-  replaces spaces with %20"
-  (replace-regexp-in-string " " "%20" (url-insert-entities-in-string string) nil))
-
-(defun twitching-url-decode (encoded-string)
-  "Inverse of url-insert-entities-in-string
-
-Converts HTML entity references in ENCODED-STRING.  Returns a new
-string with the result of the conversion.  Replaces these strings
-as follows:
-    &amp;  ==> &
-    &lt;   ==> <
-    &gt;   ==> >
-    &quot; ==> \""
-  (reduce #'(lambda (str escape)
-              (replace-regexp-in-string (car escape) (cdr escape) str nil))
-          '(("&quot;" . "\"") ("&amp;" . "&") ("&lt;" . "<") ("&gt;" . ">") ("%20" . " "))
-          :from-end nil
-          :initial-value encoded-string))
-
 (defun twitching-json-truth-value (val)
   "Returns t or nil depending upon the json truth value of VAL."
   (case val
@@ -525,6 +506,8 @@ as follows:
     (:json-true t)
     (t nil)))
 
+
+;;; General utility functions that should probably be elsewhere.
 (defun string-ends-with-p (string substring)
   "Return t if STRING ends with SUBSTRING"
   (let ((string-len (length string))
@@ -542,5 +525,10 @@ as follows:
         nil
       (let ((start (substring string 0 substr-len)))
         (string= substring start)))))
+
+(defun twitching-url-encode (string)
+  "Same as url-insert-entities-in-string, but in addition,
+  replaces spaces with %20"
+  (replace-regexp-in-string " " "%20" (url-insert-entities-in-string string) nil))
 
 ;;; twitching.el ends here
