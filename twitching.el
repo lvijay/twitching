@@ -106,6 +106,26 @@
                                                  (:background "white")
                                                  (:foreground "red4"))))
 
+(defvar *twitching-plaintext-category*
+  (put '*twitching-plaintext-category* 'face '((:background "white")
+                                               (:foreground "black"))))
+
+(defvar *twitching-hashtags-category*
+  (put '*twitching-hashtags-category* 'face '((:background "ivory3")
+                                             (:foreground "firebrick")
+                                             (:slant italic))))
+
+(defvar *twitching-mentions-category*
+  (put '*twitching-mentions-category* 'face '((:background "thistle2")
+                                              (:foreground "DarkGreen")
+                                              (:weight bold))))
+
+(defvar *twitching-urls-category*
+  (put '*twitching-urls-category* 'face '((:background "white")
+                                          (:foreground "blue1")
+                                          (:slant italic)
+                                          (:underline t))))
+
 (defun twitching-overlay (start end)
   "Renders the line as a tweet specified by the region in START
   and END."
@@ -116,17 +136,50 @@
          (user (twitch-twitter-status-user status))
          (screen-name (twitch-twitter-user-screen-name user))
          (user-name (twitch-twitter-user-name user))
-         (entity (twitch-twitter-status-entities status))
-         (urls (twitch-twitter-entity-urls entity))
          (overlay (make-overlay start end))
          (sep " | ")
          (line1 (propertize (concat screen-name sep user-name sep created-at)
                             'category '*twitching-top-line-category*))
-         (line2 (propertize (concat text)
-                           'category '*twitching-status-line-category*))
+         (line2 (twitching-decorate-status-text status))
          (display (concat line1 "\n" line2)))
     (overlay-put overlay 'tweet status)
     (overlay-put overlay 'display display)))
+
+(defun twitching-decorate-status-text (status)
+  (let* ((text (twitch-twitter-status-text status))
+         (entity (twitch-twitter-status-entities status))
+         (urls (twitch-twitter-entity-urls entity))
+         (mentions (twitch-twitter-entity-user-mentions entity))
+         (hashtags (twitch-twitter-entity-hashtags entity))
+         (properties '((hashtag . *twitching-hashtags-category*)
+                       (mention . *twitching-mentions-category*)
+                       (url . *twitching-urls-category*)
+                       (text . *twitching-plaintext-category*)))
+         (fn (lambda (list type)
+               (mapcar (lambda (x) `(,@(cdr (assoc 'indices x)) ,type)) list)))
+         (hashtags (funcall fn hashtags 'hashtag))
+         (mentions (funcall fn mentions 'mention))
+         (urls (funcall fn urls 'url))
+         (indices (sort (append hashtags mentions urls)
+                        (lambda (idx1 idx2)
+                          (< (second idx1) (second idx2)))))
+         (max (length text))
+         (ci 0)
+         result)
+    (dolist (idx indices result)
+      (when (/= ci (car idx))
+        (push `(,ci ,(car idx) text) result))
+      (push idx result)
+      (setq ci (cadr idx)))
+    (when (> max ci)
+      (push (list ci max 'text) result))
+    (setq result
+          (mapcar (lambda (idx)
+                    (let* ((txt (substring text (first idx) (second idx)))
+                           (type (third idx)))
+                      (propertize txt 'category (cdr (assoc type properties)))))
+           (reverse result)))
+    (apply #'concat result)))
 
 ;;; mode interactive functions
 (defun twitching-next-tweet (n)
