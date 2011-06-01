@@ -34,6 +34,10 @@
 (defvar *twitching-timer* nil
   "The timer object that keeps getting tweets.")
 
+(defvar *twitching-timer-interval* 300
+  "Interval, in seconds, between fetching the twitter home
+timeline.")
+
 ;;;###autoload
 (defun twitching-to-get-my-tweets ()
   "Start timer to fetch home timeline."
@@ -43,7 +47,7 @@
         (message "Timer already running.")
       (setq *twitching-timer*
             (run-with-timer 0
-                            300
+                            *twitching-timer-interval*
                             #'twitching-get-home-timeline)))))
 
 (defun twitching-get-home-timeline ()
@@ -51,13 +55,18 @@
   (interactive)
   (let ((twitching-buffer (get-buffer-create "*Twitching*")))
     (with-current-buffer twitching-buffer
-      (goto-char (point-max))
-      (mapcar (lambda (tweet)
-                (let ((tweet (replace-regexp-in-string "[\r\n]"
-                                                       " "
-                                                       (format "%S" tweet))))
-                  (insert (concat tweet "\n"))))
-              (twitch-get-home-timeline))))
+      (save-excursion
+        (let ((starting-line (line-number-at-pos))
+              ending-line)
+          (goto-char (point-max))
+          (mapcar (lambda (tweet)
+                    (let* ((tweet-string (format "%S" tweet))
+                           (tweet (replace-regexp-in-string "[\r\n]" " "
+                                                            tweet-string)))
+                      (insert (concat tweet "\n"))))
+                  (twitch-get-home-timeline))
+          (setq ending-line (line-number-at-pos))
+          (twitching-prev-tweet (- ending-line starting-line))))))
   (message "retrieved tweets"))
 
 (defun twitching-stop ()
@@ -71,33 +80,7 @@
     (message "twitching timer not running.")))
 
 
-;;; Define `twitching-mode'
-
-(defvar *twitching-current-tweet* nil
-  "Dynamic variable used to hold the current tweet.")
-
-;; keymap
-
-(defvar *twitching-keymap*
-  (let ((keymap (make-keymap))
-        (nodigits t))
-    (suppress-keymap keymap nodigits)
-    (define-key keymap (kbd "n") 'twitching-next-tweet)
-    (define-key keymap (kbd "C-n") 'twitching-next-tweet)
-    (define-key keymap (kbd "<down>") 'twitching-next-tweet)
-    (define-key keymap (kbd "p") 'twitching-prev-tweet)
-    (define-key keymap (kbd "C-p") 'twitching-prev-tweet)
-    (define-key keymap (kbd "<up>") 'twitching-prev-tweet)
-    (define-key keymap (kbd "f") 'twitching-create-filter)
-    (define-key keymap (kbd "o") 'twitching-open-link)
-    ))
-
 ;;; overlay
-(defun twitching-overlay-on-line ()
-  (let ((start (line-beginning-position))
-        (end (line-end-position)))
-    (twitching-overlay start end)))
-
 (defvar *twitching-top-line-category*
   (put '*twitching-top-line-category* 'face '((:weight bold)
                                               (:slant italic)
@@ -129,7 +112,18 @@
                                           (:slant italic)
                                           (:underline t))))
 
+(defvar *twitching-empty-space-category*
+  (put '*twitching-empty-space-category* 'face '((:background "white")
+                                                 (:foreground "black")
+                                                 (:underline t)
+                                                 (:overline t))))
+
 (defvar *twitching-fill-column* 70 "Set this to manipulate `fill-column'.")
+
+(defun twitching-overlay-on-line ()
+  (let ((start (line-beginning-position))
+        (end (line-end-position)))
+    (twitching-overlay start end)))
 
 (defun twitching-overlay (start end)
   "Renders the line as a tweet specified by the region in START
@@ -142,11 +136,14 @@
          (screen-name (twitch-twitter-user-screen-name user))
          (user-name (twitch-twitter-user-name user))
          (overlay (make-overlay start end))
+         (newline (propertize "\n" 'face '((:background "white")
+                                           (:foreground "black"))))
+         (spaces (twitching-spaces))
          (sep " | ")
          (line1 (propertize (concat screen-name sep user-name sep created-at)
                             'category '*twitching-top-line-category*))
          (line2 (twitching-decorate-status-text status))
-         (display (concat line1 "\n" line2)))
+         (display (concat line1 newline line2 newline spaces)))
     (overlay-put overlay 'tweet status)
     (overlay-put overlay 'display display)))
 
@@ -188,6 +185,37 @@
       (let ((fill-column *twitching-fill-column*))
         (fill-region (point-min) (point-max)))
       (buffer-string))))
+
+(defun twitching-spaces ()
+  (let* ((result '("")))
+    (dotimes (i fill-column) (push " " result))
+    (propertize (apply #'concat result)
+                'category '*twitching-empty-space-category*)))
+
+
+;;; Define `twitching-mode'
+
+;; keymap
+
+(define-derived-mode twitching-mode nil "Twitching"
+  "Major mode for viewing tweets. \\{twitching-mode-map}")
+
+(defvar twitching-mode-hook '()
+  "Mode hook.")
+
+(defvar twitching-mode-map
+  (let ((keymap (make-keymap))
+        (nodigits t))
+    (suppress-keymap keymap nodigits)
+    (define-key keymap (kbd "n") 'twitching-next-tweet)
+    (define-key keymap (kbd "C-n") 'twitching-next-tweet)
+    (define-key keymap (kbd "<down>") 'twitching-next-tweet)
+    (define-key keymap (kbd "p") 'twitching-prev-tweet)
+    (define-key keymap (kbd "C-p") 'twitching-prev-tweet)
+    (define-key keymap (kbd "<up>") 'twitching-prev-tweet)
+    (define-key keymap (kbd "f") 'twitching-create-filter)
+    (define-key keymap (kbd "o") 'twitching-open-link)
+    keymap))
 
 ;;; mode interactive functions
 (defun twitching-next-tweet (n)
