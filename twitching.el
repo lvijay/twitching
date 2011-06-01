@@ -60,6 +60,7 @@ timeline.")
   (interactive)
   (let ((twitching-buffer (get-buffer-create "*Twitching*")))
     (with-current-buffer twitching-buffer
+      (setq major-mode 'twitching-mode)
       (save-excursion
         (let ((starting-line (line-number-at-pos))
               ending-line)
