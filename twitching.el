@@ -33,6 +33,7 @@
 (require 'hmac-sha1)
 (require 'oauth)
 (require 'json)
+(require 'browse-url)
 
 
 ;;; Main interface functions
@@ -374,6 +375,8 @@ takes one argument."
 (defvar *twitching-access-token-secret* nil
   "Set the twitter access token secret here.")
 
+(defvar *twitching-oauth-access-token* nil "OAuth access token.")
+
 (defvar *twitching-since-id* nil "Last status-id received from twitter.")
 
 (defvar *twitching-count* nil "Number of tweets to fetch")
@@ -385,11 +388,9 @@ takes one argument."
 `twitching-status'es."
   (twitching-check-keys)
   (let ((url "http://api.twitter.com/1/statuses/home_timeline.json")
-        (authenticatep t)
         (params (twitching-default-params)))
     (let ((statuses (twitching-get-statuses url
-                                         params
-                                         authenticatep)))
+                                         params)))
       (when statuses
         (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
                                statuses :key #'twitching-status-id)))
@@ -411,42 +412,50 @@ Requests user input if they haven't."
           (read-string "Enter access token: ")))
   (unless *twitching-access-token-secret*
     (setq *twitching-access-token-secret*
-          (read-string "Enter access token secret: "))))
+          (read-string "Enter access token secret: ")))
+  (setq *twitching-oauth-access-token*
+        (make-oauth-access-token
+         :consumer-key *twitching-consumer-key*
+         :consumer-secret *twitching-consumer-secret*
+         :auth-t (make-oauth-t
+                  :token *twitching-access-token*
+                  :token-secret *twitching-access-token-secret*))))
 
-(defun twitching-get-statuses (url params-alist authenticatep &optional method)
-  "Main business logic method.
+(defun twitching-get-statuses (url params-alist &optional method)
+  "Main business logic method to get twitter statuses.
 
 Makes a call to URL with PARAMS-ALIST added to the query-string.
 
-AUTHENTICATEP is t then authentication is enabled.  Currently
-unused.
-
 METHOD determines the http method GET or POST.  Default
 is GET."
+  (let ((response (twitching-oauth-get-http-response
+                   url params-alist (or method "GET"))))
+    (when (twitching-request-success-p response)
+      (let ((response-body (twitching-extract-response-body response))
+            (json-array-type 'list))
+        (let ((statuses (json-read-from-string response-body)))
+          (mapcar #'new-twitching-status statuses))))))
+
+(defun twitching-oauth-get-http-response (url params method)
+  "Form an oauth request from URL with PARAMS and METHOD and
+return the response as a string."
   (let* ((url (twitching-form-url url params-alist))
-         (access-token (make-oauth-access-token
-                        :consumer-key *twitching-consumer-key*
-                        :consumer-secret *twitching-consumer-secret*
-                        :auth-t (make-oauth-t
-                                 :token *twitching-access-token*
-                                 :token-secret *twitching-access-token-secret*)))
-         (req (oauth-make-request
-               url
-               (oauth-access-token-consumer-key access-token)
-               (oauth-access-token-auth-t access-token))))
-    (setf (oauth-request-http-method req) (or method "GET"))
+         (req (make-twitching-oauth-request url)))
+    (setf (oauth-request-http-method req) method)
     (oauth-sign-request-hmac-sha1 req (oauth-access-token-consumer-secret
-                                       access-token))
+                                       *twitching-oauth-access-token*))
     (let* ((url (oauth-request-url req))
            (headers (oauth-request-to-header req))
            (request-method (oauth-request-http-method req))
            (response (url-retrieve-synchronously-as-string
                       url headers request-method)))
-      (when (twitching-request-success-p response)
-        (let ((response-body (twitching-extract-response-body response))
-              (json-array-type 'list))
-          (let ((statuses (json-read-from-string response-body)))
-            (mapcar #'new-twitching-status statuses)))))))
+      response)))
+
+(defun make-twitching-oauth-request (url)
+  (oauth-make-request
+   url
+   (oauth-access-token-consumer-key *twitching-oauth-access-token*)
+   (oauth-access-token-auth-t *twitching-oauth-access-token*)))
 
 (defun url-retrieve-synchronously-as-string (url &optional headers request-method)
   "Retrieves the contents of URL and returns the response as a
@@ -457,9 +466,14 @@ GET."
                                        (append url-request-extra-headers headers)
                                      headers))
         (url-request-method (or request-method "GET"))
+        (count 0)
+        (limit 60)
         response)
     (url-retrieve url (lambda (s) (setq response (or (buffer-string) ""))))
-    (while (null response) (sleep-for 1))
+    (while (and (null response) (< count limit))
+      (setq count (1+ count))
+      (sleep-for 1))
+    (if (> count limit) (message "request timed out."))
     response))
 
 (defun twitching-request-success-p (response)
