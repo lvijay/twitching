@@ -617,7 +617,7 @@ GET."
   (replace-regexp-in-string " " "%20" (url-insert-entities-in-string string) nil))
 
 (defun twitching-remove-new-lines (x)
-  "Replace \r and \n in X with spaces."
+  "Replace \\r and \\n in X with spaces."
   (if (stringp x)
       (replace-regexp-in-string "[\r\n]" " " x)
     x))
