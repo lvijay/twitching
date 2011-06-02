@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.0.1
+;;; Version: 0.3.0
 ;;; Keywords: twitter
 ;;; Contributors:
 ;;;
@@ -181,11 +181,28 @@ takes one argument."
 
 
 ;;; overlay
-(defvar *twitching-top-line-category*
-  (put '*twitching-top-line-category* 'face '((:weight bold)
-                                              (:slant italic)
-                                              (:background "white")
-                                              (:foreground "chocolate"))))
+(defvar *twitching-screen-name-category*
+  (put '*twitching-screen-name-category* 'face '((:weight bold)
+                                                 (:background "MidnightBlue")
+                                                 (:foreground "gold"))))
+
+(defvar *twitching-user-name-category*
+  (put '*twitching-user-name-category* 'face '((:weight bold)
+                                               (:background "MidnightBlue")
+                                               (:foreground "gold"))))
+
+(defvar *twitching-timestamp-category*
+  (put '*twitching-timestamp-category* 'face '((:background "MidnightBlue")
+                                               (:foreground "gold")
+                                               (:weight bold))))
+
+(defvar *twitching-separator-category*
+  (put '*twitching-separator-category* 'face '((:background "MidnightBlue")
+                                               (:foreground "white")
+                                               (:weight bold))))
+
+(defvar *twitching-separator*
+  (propertize " | " 'category '*twitching-separator-category*))
 
 (defvar *twitching-status-line-category*
   (put '*twitching-status-line-category* 'face '((:weight normal)
@@ -212,14 +229,20 @@ takes one argument."
                                           (:slant italic)
                                           (:underline t))))
 
-(defvar *twitching-empty-space-category*
-  (put '*twitching-empty-space-category* 'face '((:background "white")
-                                                 (:foreground "black")
-                                                 (:underline t)
-                                                 (:overline t))))
+(defvar *twitching-star-category*
+  (put '*twitching-star-category* 'face '((:background "yellow"))))
 
-(defvar *twitching-star* (propertize "\x2605\ " 'face '((:background "yellow")))
+(defvar *twitching-star* (propertize "\x2605\ "
+                                     'category '*twitching-star-category*)
   "String used to represent starred tweets.")
+
+(defvar *twitching-retweet*
+  (propertize "\x27F3\ " 'face '((:background "GreenYellow")))
+  "String used to represent retweeted tweets.")
+
+(defvar *twitching-newline* (propertize "\n"
+                                        'face '((:background "white")
+                                                (:foreground "white"))))
 
 (defvar *twitching-fill-column* 70 "Set this to manipulate `fill-column'.")
 
@@ -233,27 +256,32 @@ takes one argument."
   and END."
   (let* ((tweet-str (buffer-substring-no-properties start end))
          (status (read tweet-str))
-         (text (twitching-status-text status))
-         (created-at (twitching-status-created-at status))
+         (line1 (twitching-decorate-title-text status))
+         (line2 (twitching-decorate-status-text status))
+         (newline *twitching-newline*)
+         (display (concat line1 newline line2 newline))
+         (overlay (make-overlay start end)))
+    (overlay-put overlay 'tweet status)
+    (overlay-put overlay 'display display)))
+
+(defun twitching-decorate-title-text (status)
+  (let* ((created-at (twitching-status-created-at status))
          (user (twitching-status-user status))
          (screen-name (twitching-user-screen-name user))
          (user-name (twitching-user-name user))
-         (overlay (make-overlay start end))
          (favoritedp (twitching-status-favoritedp status))
-         (newline (propertize "\n" 'face '((:background "white")
-                                           (:foreground "black"))))
-         (spaces (twitching-spaces))
-         (sep " | ")
-         (line1 (propertize
-                 (concat screen-name sep user-name sep created-at)
-                 'category '*twitching-top-line-category*))
-         (line1 (if favoritedp
-                    (concat line1 " " *twitching-star*)
-                  line1))
-         (line2 (twitching-decorate-status-text status))
-         (display (concat line1 newline line2 newline spaces)))
-    (overlay-put overlay 'tweet status)
-    (overlay-put overlay 'display display)))
+         (retweetedp (twitching-status-retweetedp status))
+         (sep *twitching-separator*)
+         (screen-name (propertize screen-name
+                                  'category '*twitching-screen-name-category*))
+         (user-name (propertize user-name
+                                'category '*twitching-user-name-category*))
+         (created-at (propertize created-at
+                                 'category '*twitching-timestamp-category*))
+         (line (concat screen-name sep user-name sep created-at)))
+    (when favoritedp (setq line (concat line sep *twitching-star*)))
+    (when retweetedp (setq line (concat *twitching-retweet* sep line)))
+    line))
 
 (defun twitching-decorate-status-text (status)
   "Decorates the status text."
@@ -293,12 +321,6 @@ takes one argument."
       (let ((fill-column *twitching-fill-column*))
         (fill-region (point-min) (point-max)))
       (buffer-string))))
-
-(defun twitching-spaces ()
-  (let* ((result '("")))
-    (dotimes (i fill-column) (push " " result))
-    (propertize (apply #'concat result)
-                'category '*twitching-empty-space-category*)))
 
 
 ;;; Define `twitching-mode'
@@ -506,6 +528,8 @@ return the response as a string."
 
 (defun twitching-request-success-p (response)
   "Returns t if RESPONSE contains 'HTTP/1.1 200 OK'"
+  ;; This is poorly implemented.  Splitting the entire response just
+  ;; to check the first line is very inefficient.
   (let* ((resp response)
          (lines (split-string resp "[\n]" t)))
     (string= (car lines) "HTTP/1.1 200 OK")))
@@ -592,8 +616,12 @@ GET."
   replaces spaces with %20"
   (replace-regexp-in-string " " "%20" (url-insert-entities-in-string string) nil))
 
-(defun twitching-remove-new-lines (string)
-  "Replace \r and \n in STRING with spaces."
-  (and string (replace-regexp-in-string "[\r\n]" " " string)))
+(defun twitching-remove-new-lines (x)
+  "Replace \r and \n in X with spaces."
+  (if (stringp x)
+      (replace-regexp-in-string "[\r\n]" " " x)
+    x))
+
+(provide 'twitching)
 
 ;;; twitching.el ends here
