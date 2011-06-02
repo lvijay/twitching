@@ -56,22 +56,22 @@ timeline.")
                             *twitching-timer-interval*
                             #'twitching-home-timeline-get)))))
 
+;;;###autoload
 (defun twitching-home-timeline-get ()
   "Fetch home timeline."
   (interactive)
-  (let ((twitching-buffer (get-buffer-create "*Twitching*")))
+  (let ((twitching-buffer (get-twitching-buffer)))
     (with-current-buffer twitching-buffer
-      (setq major-mode 'twitching-mode)
+      (twitching-mode)
       (save-excursion
-        (let ((starting-line (line-number-at-pos))
+        (let ((tweets (twitching-get-home-timeline))
+              (starting-line (line-number-at-pos))
               ending-line)
           (goto-char (point-max))
           (mapc (lambda (tweet)
-                  (let* ((tweet-string (format "%S" tweet))
-                         (tweet (replace-regexp-in-string "[\r\n]" " "
-                                                          tweet-string)))
+                  (let ((tweet (format "%S" tweet)))
                     (insert (concat tweet "\n"))))
-                  (twitching-get-home-timeline))
+                tweets)
           (setq ending-line (line-number-at-pos))
           (twitching-prev-tweet (- ending-line starting-line))))))
   (message "retrieved tweets"))
@@ -86,6 +86,9 @@ timeline.")
       (setq *twitching-timer* nil)
       (message "Stopped twitching timer."))
     (message "twitching timer not running.")))
+
+(defun get-twitching-buffer ()
+  (get-buffer-create "*Twitching*"))
 
 
 ;;; struct definitions
@@ -131,12 +134,12 @@ takes one argument."
   (verified verifiedp #'twitching-json-truth-value)
   (following followingp #'twitching-json-truth-value)
   (contributors_enabled contributors-enabled-p #'twitching-json-truth-value)
-  (url url)
-  (location location)
+  (url url #'twitching-remove-new-lines)
+  (location location #'twitching-remove-new-lines)
   (id_str id)
   (lang lang)
   (listed_count listed-count)
-  (description description)
+  (description description #'twitching-remove-new-lines)
   (screen_name screen-name)
   (utc_offset utc-offset)
   (notifications notificationsp #'twitching-json-truth-value)
@@ -167,10 +170,10 @@ takes one argument."
   (in_reply_to_screen_name in-reply-to-screen-name)
   (retweet_count retweet-count)
   (favorited favoritedp #'twitching-json-truth-value)
-  (place place)
+  (place place #'twitching-remove-new-lines)
   (id_str id)
   (entities entities #'new-twitching-entity)
-  (text text)
+  (text text #'twitching-remove-new-lines)
   (truncated truncatedp #'twitching-json-truth-value)
   (user user #'new-twitching-user)
   (geo geo)
@@ -215,6 +218,9 @@ takes one argument."
                                                  (:underline t)
                                                  (:overline t))))
 
+(defvar *twitching-star* (propertize "\x2605\ " 'face '((:background "yellow")))
+  "String used to represent starred tweets.")
+
 (defvar *twitching-fill-column* 70 "Set this to manipulate `fill-column'.")
 
 (defun twitching-overlay-on-line ()
@@ -239,9 +245,11 @@ takes one argument."
          (spaces (twitching-spaces))
          (sep " | ")
          (line1 (propertize
-                 (concat screen-name sep user-name sep created-at
-                         (if favoritedp " | (*)" ""))
+                 (concat screen-name sep user-name sep created-at)
                  'category '*twitching-top-line-category*))
+         (line1 (if favoritedp
+                    (concat line1 " " *twitching-star*)
+                  line1))
          (line2 (twitching-decorate-status-text status))
          (display (concat line1 newline line2 newline spaces)))
     (overlay-put overlay 'tweet status)
@@ -364,14 +372,22 @@ takes one argument."
 (defun twitching-favorite-tweet (point)
   "Favorite or unfavorite the tweet at POINT."
   (interactive "d")
+  (beginning-of-line)
   (let* ((overlay (car (overlays-at (point))))
-         (tweet (overlay-get overlay 'tweet)))
+         (tweet (if overlay (overlay-get overlay 'tweet)))
+         new-tweet)
     (if tweet
         (progn
-          (setq tweet (twitching-star-tweet tweet))
-          (when tweet
-            (overlay-put overlay 'tweet tweet)
-            (twitching-layout point)))
+          (delete-overlay overlay)
+          (setq new-tweet (twitching-star-tweet tweet))
+          (when new-tweet
+            (let ((start (progn (beginning-of-line) (point)))
+                  (end (progn (end-of-line) (point))))
+              (delete-region start end)
+              (insert (format "%S" new-tweet))
+              (goto-char start)
+              (twitching-layout start)
+              (goto-char start))))
       (message "No tweet at point."))))
 
 (defun twitching-create-filter ()
@@ -405,15 +421,14 @@ takes one argument."
   "Gets the current user's home timeline as a list of
 `twitching-status'es."
   (twitching-check-keys)
-  (let ((url "http://api.twitter.com/1/statuses/home_timeline.json")
-        (params (twitching-default-params)))
-    (let ((statuses (twitching-get-statuses url
-                                         params)))
-      (when statuses
-        (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
-                               statuses :key #'twitching-status-id)))
-          (when highest (setq *twitching-since-id* highest))))
-      statuses)))
+  (let* ((url "http://api.twitter.com/1/statuses/home_timeline.json")
+         (params (twitching-default-params))
+         (statuses (twitching-get-statuses url params)))
+    (when statuses
+      (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
+                             statuses :key #'twitching-status-id)))
+        (setq *twitching-since-id* highest)))
+    statuses))
 
 (defun twitching-check-keys ()
   "Checks if *twitching-consumer-key* *twitching-consumer-secret*
@@ -550,7 +565,7 @@ that return statuses."
   (case val
     (:json-false nil)
     (:json-true t)
-    (t nil)))
+    (t val)))
 
 
 ;;; General utility functions that should probably be elsewhere.
@@ -576,5 +591,9 @@ that return statuses."
   "Same as url-insert-entities-in-string, but in addition,
   replaces spaces with %20"
   (replace-regexp-in-string " " "%20" (url-insert-entities-in-string string) nil))
+
+(defun twitching-remove-new-lines (string)
+  "Replace \r and \n in STRING with spaces."
+  (and string (replace-regexp-in-string "[\r\n]" " " string)))
 
 ;;; twitching.el ends here
