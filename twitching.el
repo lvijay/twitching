@@ -331,13 +331,13 @@ takes one argument."
 (defun twitching-next-tweet (n)
   "Move down N tweets."
   (interactive "p")
-  (flet ()
-    (twitching-layout (point))          ; layout current line
-    (let ((pos (plusp n))
-          (n (abs n)))
-      (dotimes (i n)                    ; layout all interim lines
-        (goto-line (funcall (if pos #'1+ #'1-) (line-number-at-pos)))
-        (twitching-layout (point))))))
+  (twitching-layout (point))            ; layout current line
+  (let ((pos (plusp n))
+        (n (abs n)))
+    
+    (dotimes (i n)                      ; layout all interim lines
+      (goto-line (funcall (if pos #'1+ #'1-) (line-number-at-pos)))
+      (twitching-layout (point)))))
 
 (defun twitching-prev-tweet (n)
   "Move down N tweets."
