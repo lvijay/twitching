@@ -504,25 +504,6 @@ return the response as a string."
    (oauth-access-token-consumer-key *twitching-oauth-access-token*)
    (oauth-access-token-auth-t *twitching-oauth-access-token*)))
 
-(defun url-retrieve-synchronously-as-string (url &optional headers request-method)
-  "Retrieves the contents of URL and returns the response as a
-string.  Passes HEADERS with the request and the request is made
-as specified in REQUEST-METHOD.  By default REQUEST-METHOD is
-GET."
-  (let ((url-request-extra-headers (if url-request-extra-headers 
-                                       (append url-request-extra-headers headers)
-                                     headers))
-        (url-request-method (or request-method "GET"))
-        (count 0)
-        (limit 60)
-        response)
-    (url-retrieve url (lambda (s) (setq response (or (buffer-string) ""))))
-    (while (and (null response) (< count limit))
-      (setq count (1+ count))
-      (sleep-for 1))
-    (if (> count limit) (message "request timed out."))
-    response))
-
 (defun twitching-request-success-p (response)
   "Returns t if RESPONSE contains 'HTTP/1.1 200 OK'"
   (let* ((resp response)
@@ -569,6 +550,25 @@ that return statuses."
 
 
 ;;; General utility functions that should probably be elsewhere.
+(defun url-retrieve-synchronously-as-string (url &optional headers request-method)
+  "Retrieves the contents of URL and returns the response as a
+string.  Passes HEADERS with the request and the request is made
+as specified in REQUEST-METHOD.  By default REQUEST-METHOD is
+GET."
+  (let ((url-request-extra-headers (if url-request-extra-headers 
+                                       (append url-request-extra-headers headers)
+                                     headers))
+        (url-request-method (or request-method "GET"))
+        (count 0)
+        (limit 60)
+        response)
+    (url-retrieve url (lambda (s) (setq response (or (buffer-string) ""))))
+    (while (and (null response) (< count limit))
+      (setq count (1+ count))
+      (sleep-for 1))
+    (if (> count limit) (message "request timed out."))
+    response))
+
 (defun string-ends-with-p (string substring)
   "Return t if STRING ends with SUBSTRING"
   (let ((string-len (length string))
