@@ -71,20 +71,25 @@ timeline.")
 (defun twitching-home-timeline-get ()
   "Fetch home timeline."
   (interactive)
-  (let ((twitching-buffer (get-twitching-buffer)))
+  (let* ((twitching-buffer (get-twitching-buffer))
+         (tweets (twitching-get-home-timeline))
+         starting-line
+         ending-line)
     (with-current-buffer twitching-buffer
       (twitching-mode)
       (save-excursion
-        (let ((tweets (twitching-get-home-timeline))
-              (starting-line (line-number-at-pos))
-              ending-line)
-          (goto-char (point-max))
-          (mapc (lambda (tweet)
-                  (let ((tweet (format "%S" tweet)))
-                    (insert (concat tweet "\n"))))
-                tweets)
-          (setq ending-line (line-number-at-pos))
-          (twitching-prev-tweet (- ending-line starting-line))))))
+        (goto-char (point-max))
+        (setq starting-line (line-number-at-pos))
+        (mapc (lambda (tweet)
+                (let ((tweet (format "%S" tweet)))
+                  (insert (concat tweet "\n"))))
+              tweets)
+        (setq ending-line (line-number-at-pos))))
+    (with-current-buffer twitching-buffer
+      (save-excursion
+        (goto-line ending-line)
+        (twitching-layout (point))
+        (twitching-prev-tweet (- ending-line starting-line)))))
   (message "retrieved tweets"))
 
 ;;;###autoload
@@ -360,8 +365,8 @@ takes one argument."
     (define-key keymap (kbd "s") 'twitching-favorite-tweet)
     (define-key keymap (kbd "o") 'twitching-open-link)
     (define-key keymap (kbd "q") 'bury-buffer)
-    (define-key keymap (kbd "SPC") 'scroll-up)
-    (define-key keymap (kbd "<backspace>") 'scroll-down)
+    (define-key keymap (kbd "SPC") 'twitching-page-down)
+    (define-key keymap (kbd "<backspace>") 'twitching-page-up)
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
@@ -435,6 +440,18 @@ takes one argument."
   "Create a twitter filter."
   (interactive))
 
+(defun twitching-page-down (n)
+  "Scroll down N pages."
+  (interactive "p")
+  (scroll-up n)
+  (beginning-of-line))
+
+(defun twitching-page-up (n)
+  "Scroll up N pages."
+  (interactive "p")
+  (scroll-down n)
+  (beginning-of-line))
+
 
 ;;; Twitter API interactions
 (defvar *twitching-user-dir*
@@ -443,9 +460,9 @@ takes one argument."
 
 (defvar *twitching-consumer-key* nil "Set the twitter consumer key here.")
 
-(defvar *twitching-access-token* nil "Set the twitter access key here.")
-
 (defvar *twitching-consumer-secret* nil "Set the twitter consumer secret here.")
+
+(defvar *twitching-access-token* nil "Set the twitter access key here.")
 
 (defvar *twitching-access-token-secret* nil
   "Set the twitter access token secret here.")
