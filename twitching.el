@@ -97,8 +97,8 @@ timeline.")
 STRUCT-NAME is the name of the represented object.
 
 FIELDS is a list of triples of the form (json-object-field-name
-struct-field-name key-function).  key-function is optional and by
-default is IDENTITY.  If provided, it must be a function that
+struct-field-name key-function).  key-function is optional and is
+IDENTITY by default.  If provided, it must be a function that
 takes one argument."
   (declare (indent 1))
   (let ((constructor-name (intern (concat "make-" (symbol-name struct-name))))
@@ -115,17 +115,22 @@ takes one argument."
                      `("Create a new instance of"
                        ,struct-name "from JSON-OBJECT.")
                      " ")
-         (,constructor-name
-          .,(mapcan (lambda (field)
-                      (let* ((json-field (first field))
-                             (symbol-name (symbol-name (second field)))
-                             (keyword-field (intern (concat ":" symbol-name)))
-                             (struct-field keyword-field)
-                             (key-fn (third field)))
-                        (if key-fn
-                            `(,struct-field (funcall ,key-fn (cdr (assoc ',json-field json-object))))
-                          `(,struct-field (cdr (assoc ',json-field json-object))))))
-                    fields))))))
+         (flet ((preprop (x)
+                  (if (stringp x)
+                      (replace-regexp-in-string "[\r\n]" " " x)
+                    x)))
+           (,constructor-name
+            .,(mapcan (lambda (field)
+                        (let* ((json-field (first field))
+                               (symbol-name (symbol-name (second field)))
+                               (keyword-field (intern (concat ":" symbol-name)))
+                               (struct-field keyword-field)
+                               (form `(cdr (assoc ',json-field json-object)))
+                               (key-fn (third field)))
+                          (if key-fn
+                              `(,struct-field (preprop (funcall ,key-fn ,form)))
+                              `(,struct-field (preprop ,form)))))
+                      fields)))))))
 
 ;;; Defines a twitter-user
 (twitching-defstruct twitching-user
@@ -134,12 +139,12 @@ takes one argument."
   (verified verifiedp #'twitching-json-truth-value)
   (following followingp #'twitching-json-truth-value)
   (contributors_enabled contributors-enabled-p #'twitching-json-truth-value)
-  (url url #'twitching-remove-new-lines)
-  (location location #'twitching-remove-new-lines)
+  (url url)
+  (location location)
   (id_str id)
   (lang lang)
   (listed_count listed-count)
-  (description description #'twitching-remove-new-lines)
+  (description description)
   (screen_name screen-name)
   (utc_offset utc-offset)
   (notifications notificationsp #'twitching-json-truth-value)
@@ -170,10 +175,10 @@ takes one argument."
   (in_reply_to_screen_name in-reply-to-screen-name)
   (retweet_count retweet-count)
   (favorited favoritedp #'twitching-json-truth-value)
-  (place place #'twitching-remove-new-lines)
+  (place place)
   (id_str id)
   (entities entities #'new-twitching-entity)
-  (text text #'twitching-remove-new-lines)
+  (text text)
   (truncated truncatedp #'twitching-json-truth-value)
   (user user #'new-twitching-user)
   (geo geo)
@@ -343,6 +348,7 @@ takes one argument."
     (define-key keymap (kbd "f") 'twitching-create-filter)
     (define-key keymap (kbd "s") 'twitching-favorite-tweet)
     (define-key keymap (kbd "o") 'twitching-open-link)
+    (define-key keymap (kbd "q") 'bury-buffer)
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
@@ -548,9 +554,9 @@ RESPONSE."
   (unless (string-ends-with-p url "?") (setq url (concat url "?")))
   (dolist (param params-alist url)
     (setq url (concat url
-                      (twitching-url-encode (car param))
+                      (url-insert-entities-in-string2 (car param))
                       "="
-                      (twitching-url-encode (cdr param))
+                      (url-insert-entities-in-string2 (cdr param))
                       "&"))))
 
 (defun twitching-default-params ()
@@ -611,16 +617,10 @@ GET."
       (let ((start (substring string 0 substr-len)))
         (string= substring start)))))
 
-(defun twitching-url-encode (string)
+(defun url-insert-entities-in-string2 (s)
   "Same as url-insert-entities-in-string, but in addition,
   replaces spaces with %20"
-  (replace-regexp-in-string " " "%20" (url-insert-entities-in-string string) nil))
-
-(defun twitching-remove-new-lines (x)
-  "Replace \\r and \\n in X with spaces."
-  (if (stringp x)
-      (replace-regexp-in-string "[\r\n]" " " x)
-    x))
+  (replace-regexp-in-string " " "%20" (url-insert-entities-in-string s) nil))
 
 (provide 'twitching)
 
