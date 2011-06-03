@@ -120,8 +120,7 @@ takes one argument."
   (let ((constructor-name (intern (concat "make-" (symbol-name struct-name))))
         (new-fun-name (intern (concat "new-" (symbol-name struct-name)))))
     `(progn
-       (defstruct (,struct-name (:type vector)
-                                :named)
+       (defstruct (,struct-name (:type vector) :named)
          .,(mapcar (lambda (field-specs)
                      (let ((fld-name (cadr field-specs)))
                        fld-name))
@@ -224,11 +223,6 @@ takes one argument."
 
 (defvar *twitching-separator*
   (propertize " | " 'category '*twitching-separator-category*))
-
-(defvar *twitching-status-line-category*
-  (put '*twitching-status-line-category* 'face '((:weight normal)
-                                                 (:background "white")
-                                                 (:foreground "red4"))))
 
 (defvar *twitching-plaintext-category*
   (put '*twitching-plaintext-category* 'face '((:background "white")
@@ -446,14 +440,13 @@ takes one argument."
   (expand-file-name (convert-standard-filename "~/.emacs.d/twitching"))
   "Name of the directory where the user's tweets are stored.")
 
-(defvar *twitching-consumer-key* nil "Set the twitter consumer key here.")
+(defvar *twitching-consumer-key* nil "Twitter consumer key.")
 
-(defvar *twitching-consumer-secret* nil "Set the twitter consumer secret here.")
+(defvar *twitching-consumer-secret* nil "Twitter consumer secret.")
 
-(defvar *twitching-access-token* nil "Set the twitter access key here.")
+(defvar *twitching-access-token* nil "Twitter access key.")
 
-(defvar *twitching-access-token-secret* nil
-  "Set the twitter access token secret here.")
+(defvar *twitching-access-token-secret* nil "Twitter access token secret.")
 
 (defvar *twitching-oauth-access-token* nil "OAuth access token.")
 
