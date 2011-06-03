@@ -169,10 +169,11 @@ Returns an oauth-access-token if everything was successful."
     (setq unauth-t (oauth-fetch-token unauth-req))
     (setq auth-url (format "%s?oauth_token=%s" 
                            authorize-url (oauth-t-token unauth-t)))
-    (if oauth-enable-browse-url (browse-url auth-url))
-    (read-string (concat 
-                  "Please authorize this application by visiting: " auth-url
-                  " \nPress enter once you have done so: "))
+    (if oauth-enable-browse-url
+        (browse-url auth-url)
+      (read-string (concat 
+                    "Please authorize this application by visiting: " auth-url
+                    " \nPress enter once you have done so: ")))
     (setq access-token (read-string
                         "Please enter the provided code: "))
     (setq auth-req
