@@ -360,6 +360,8 @@ takes one argument."
     (define-key keymap (kbd "s") 'twitching-favorite-tweet)
     (define-key keymap (kbd "o") 'twitching-open-link)
     (define-key keymap (kbd "q") 'bury-buffer)
+    (define-key keymap (kbd "SPC") 'scroll-up)
+    (define-key keymap (kbd "<backspace>") 'scroll-down)
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
