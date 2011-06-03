@@ -365,8 +365,8 @@ takes one argument."
     (define-key keymap (kbd "s") 'twitching-favorite-tweet)
     (define-key keymap (kbd "o") 'twitching-open-link)
     (define-key keymap (kbd "q") 'bury-buffer)
-    (define-key keymap (kbd "SPC") 'twitching-page-down)
-    (define-key keymap (kbd "<backspace>") 'twitching-page-up)
+    (define-key keymap (kbd "SPC") 'scroll-up)
+    (define-key keymap (kbd "<backspace>") 'scroll-down)
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
@@ -439,18 +439,6 @@ takes one argument."
 (defun twitching-create-filter ()
   "Create a twitter filter."
   (interactive))
-
-(defun twitching-page-down (n)
-  "Scroll down N pages."
-  (interactive "p")
-  (scroll-up n)
-  (beginning-of-line))
-
-(defun twitching-page-up (n)
-  "Scroll up N pages."
-  (interactive "p")
-  (scroll-down n)
-  (beginning-of-line))
 
 
 ;;; Twitter API interactions
