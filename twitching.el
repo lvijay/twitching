@@ -36,6 +36,17 @@
 (require 'browse-url)
 
 
+;;; Twitter constants
+(defconst +twitter-oauth-request-url+ "http://api.twitter.com/oauth/request_token"
+  "Twitter's end point for the request token.")
+
+(defconst +twitter-oauth-access-url+ "https://api.twitter.com/oauth/access_token"
+  "Twitter's access token end point.")
+
+(defconst +twitter-oauth-authorize-url+ "https://api.twitter.com/oauth/authorize"
+  "The endpoint for the authorization url.")
+
+
 ;;; Main interface functions
 (defvar *twitching-timer* nil
   "The timer object that keeps getting tweets.")
@@ -459,21 +470,30 @@ takes one argument."
     statuses))
 
 (defun twitching-check-keys ()
-  "Checks if *twitching-consumer-key* *twitching-consumer-secret*
-*twitching-access-token* *twitching-access-token-secret* have been set.
-Requests user input if they haven't."
+  "Checks if `*twitching-consumer-key*'
+`*twitching-consumer-secret*' `*twitching-access-token*'
+`*twitching-access-token-secret*' have been set.  Requests user
+input if they haven't.
+
+If `*twitching-access-token*' `*twitching-access-token-secret*'."
   (unless *twitching-consumer-key*
     (setq *twitching-consumer-key*
           (read-string "Enter consumer key: ")))
   (unless *twitching-consumer-secret*
     (setq *twitching-consumer-secret*
           (read-string "Enter consumer secret: ")))
-  (unless *twitching-access-token*
-    (setq *twitching-access-token*
-          (read-string "Enter access token: ")))
-  (unless *twitching-access-token-secret*
-    (setq *twitching-access-token-secret*
-          (read-string "Enter access token secret: ")))
+  (unless (or *twitching-access-token* *twitching-access-token-secret*)
+    (let* ((oauth-enable-browse-url t)
+           response)
+      (setq response (oauth-authorize-app *twitching-consumer-key*
+                                          *twitching-consumer-secret*
+                                          +twitter-oauth-request-url+
+                                          +twitter-oauth-access-url+
+                                          +twitter-oauth-authorize-url+))
+      (setq *twitching-access-token*
+            (oauth-t-token (oauth-access-token-auth-t response))
+            *twitching-access-token-secret*
+            (oauth-t-token-secret (oauth-access-token-auth-t response)))))
   (setq *twitching-oauth-access-token*
         (make-oauth-access-token
          :consumer-key *twitching-consumer-key*
