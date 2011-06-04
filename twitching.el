@@ -263,7 +263,7 @@ takes one argument."
 
 (defun twitching-overlay-on-line ()
   (let ((start (line-beginning-position))
-        (end (line-end-position)))
+        (end (1+ (line-end-position))))
     (twitching-overlay start end)))
 
 (defun twitching-overlay (start end)
@@ -371,7 +371,7 @@ takes one argument."
 (defun twitching-layout (point)
   (let* ((overlays (overlays-at point))
          (overlay (car overlays))
-         (tweet (and overlay (overlay-get overlay 'tweet))))
+         (tweet (and (overlayp overlay) (overlay-get overlay 'tweet))))
     (when (and (not tweet) (not (eobp)))
       (mapc #'delete-overlay overlays)
       (twitching-overlay-on-line))))
@@ -503,7 +503,8 @@ If `*twitching-access-token*' `*twitching-access-token-secret*'."
                   :token-secret *twitching-access-token-secret*))))
 
 (defun twitching-get-statuses (url params-alist &optional method)
-  "Main business logic method to get twitter statuses.
+  "Main business logic method to get twitter statuses.  The
+result is returned as a list of type `twitching-status'.
 
 Makes a call to URL with PARAMS-ALIST added to the query-string.
 
