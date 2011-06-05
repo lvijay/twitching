@@ -37,13 +37,16 @@
 
 
 ;;; Twitter constants
-(defconst +twitter-oauth-request-url+ "http://api.twitter.com/oauth/request_token"
+(defconst +twitter-oauth-request-url+
+  "http://api.twitter.com/oauth/request_token"
   "Twitter's end point for the request token.")
 
-(defconst +twitter-oauth-access-url+ "https://api.twitter.com/oauth/access_token"
+(defconst +twitter-oauth-access-url+
+  "https://api.twitter.com/oauth/access_token"
   "Twitter's access token end point.")
 
-(defconst +twitter-oauth-authorize-url+ "https://api.twitter.com/oauth/authorize"
+(defconst +twitter-oauth-authorize-url+
+  "https://api.twitter.com/oauth/authorize"
   "The endpoint for the authorization url.")
 
 
@@ -71,25 +74,23 @@ timeline.")
 (defun twitching-home-timeline-get ()
   "Fetch home timeline."
   (interactive)
-  (let* ((twitching-buffer (get-twitching-buffer))
-         (tweets (twitching-get-home-timeline))
-         starting-line
-         ending-line)
+  (let ((twitching-buffer (get-twitching-buffer))
+        (tweets (twitching-get-home-timeline))
+        starting-point
+        ending-point)
     (with-current-buffer twitching-buffer
       (twitching-mode)
       (save-excursion
-        (goto-char (point-max))
-        (setq starting-line (line-number-at-pos))
+        (setq starting-point (point-max))
+        (goto-char starting-point)
         (mapc (lambda (tweet)
-                (let ((tweet (format "%S" tweet)))
-                  (insert (concat tweet "\n"))))
+                (let ((tweet (format "%S\n" tweet)))
+                  (insert tweet)))
               tweets)
-        (setq ending-line (line-number-at-pos))))
+        (setq ending-point (point))))
     (with-current-buffer twitching-buffer
       (save-excursion
-        (goto-line ending-line)
-        (twitching-layout (point))
-        (twitching-prev-tweet (- ending-line starting-line)))))
+        (twitching-render-region starting-point ending-point))))
   (message "retrieved tweets"))
 
 ;;;###autoload
@@ -200,7 +201,7 @@ takes one argument."
   (coordinates coordinates))
 
 
-;;; overlay
+;;; render
 (defvar *twitching-screen-name-category*
   (put '*twitching-screen-name-category* 'face '((:weight bold)
                                                  (:background "MidnightBlue")
@@ -261,23 +262,27 @@ takes one argument."
 
 (defvar *twitching-fill-column* 70 "Set this to manipulate `fill-column'.")
 
-(defun twitching-overlay-on-line ()
-  (let ((start (line-beginning-position))
-        (end (1+ (line-end-position))))
-    (twitching-overlay start end)))
-
-(defun twitching-overlay (start end)
-  "Renders the line as a tweet specified by the region in START
-  and END."
-  (let* ((tweet-str (buffer-substring-no-properties start end))
-         (status (read tweet-str))
-         (line1 (twitching-decorate-title-text status))
-         (line2 (twitching-decorate-status-text status))
-         (newline *twitching-newline*)
-         (display (concat line1 newline line2 newline))
-         (overlay (make-overlay start end)))
-    (overlay-put overlay 'tweet status)
-    (overlay-put overlay 'display display)))
+(defun twitching-render-region (start end)
+  "Renders the region in START and END.  Continually reads
+`twitching-status'es in the region and renders each of them."
+  (when (> start end) (rotatef start end))
+  (let ((string (buffer-substring-no-properties start end))
+        (buffer (get-twitching-buffer))
+        result
+        (read-start 0))
+    (while (ignore-errors (setq result (read-from-string string read-start)))
+      (let* ((status (car result))
+             (read-end (cdr result))
+             (line1 (twitching-decorate-title-text status))
+             (line2 (twitching-decorate-status-text status))
+             (newline *twitching-newline*)
+             (display (concat line1 newline line2 newline))
+             (buf-start (+ start read-start))
+             (buf-end (+ start read-end)))
+        (set-text-properties buf-start buf-end nil buffer)
+        (put-text-property buf-start buf-end 'display display)
+        (put-text-property buf-start buf-end 'tweet status)
+        (setq read-start read-end)))))
 
 (defun twitching-decorate-title-text (status)
   (let* ((created-at (twitching-status-created-at status))
@@ -368,24 +373,30 @@ takes one argument."
 
 
 ;;; Mode interactive functions
-(defun twitching-layout (point)
-  (let* ((overlays (overlays-at point))
-         (overlay (car overlays))
-         (tweet (and (overlayp overlay) (overlay-get overlay 'tweet))))
-    (when (and (not tweet) (not (eobp)))
-      (mapc #'delete-overlay overlays)
-      (twitching-overlay-on-line))))
-
 (defun twitching-next-tweet (n)
   "Move down N tweets."
   (interactive "p")
-  (twitching-layout (point))            ; layout current line
-  (let ((pos (plusp n))
-        (n (abs n)))
-    
+  (let* ((plusp (plusp n))
+         direction
+         limit
+         test
+         (n (abs n))
+         (buffer (get-twitching-buffer))
+         (point (point))
+         (starting-point point)
+         ending-point)
+    (if plusp
+        (setq direction #'next-single-property-change
+              limit (point-max)
+              test #'<)
+        (setq direction #'previous-single-property-change
+              limit (point-min)
+              test #'>))
     (dotimes (i n)                      ; layout all interim lines
-      (goto-line (funcall (if pos #'1+ #'1-) (line-number-at-pos)))
-      (twitching-layout (point)))))
+      (setq ending-point (funcall direction point 'tweet buffer limit)))
+    (save-excursion
+      (twitching-render-region starting-point ending-point))
+    (goto-char ending-point)))
 
 (defun twitching-prev-tweet (n)
   "Move down N tweets."
@@ -395,12 +406,9 @@ takes one argument."
 (defun twitching-open-link (n)
   "Open the N th url in tweet.  Ignored if tweet has no urls."
   (interactive "P")
-  (when (eolp) (beginning-of-line))
-  (let* ((n (or n 0))
-         (overlays (overlays-at (point)))
-         (fn (lambda (o) (overlay-get o 'tweet)))
-         (overlays (mapcar fn overlays))
-         (tweet (car overlays)))
+  ;(when (not (bolp)) (beginning-of-line))
+  (let ((n (or n 0))
+        (tweet (get-text-property (point) 'tweet)))
     (when tweet
       (let* ((entity (twitching-status-entities tweet))
              (urls (twitching-entity-urls entity))
@@ -412,22 +420,63 @@ takes one argument."
 (defun twitching-favorite-tweet (point)
   "Favorite or unfavorite the tweet at POINT."
   (interactive "d")
-  (beginning-of-line)
-  (let* ((overlay (car (overlays-at (point))))
-         (tweet (if overlay (overlay-get overlay 'tweet)))
+  (let* ((point (point))
+         (tweet (get-text-property point 'tweet))
+         (buffer (get-twitching-buffer))
          new-tweet)
     (if tweet
-        (progn
-          (delete-overlay overlay)
-          (setq new-tweet (twitching-star-tweet tweet))
+        ;; since we're using text properties, we need to do extra
+        ;; jugglery to find bounds of this tweet.
+        ;;
+        ;; pictorially:
+        ;;
+        ;; +------------+ +------------+ +----------+
+        ;; | prev tweet | | this tweet | |next tweet|
+        ;; +------------+ +------------+ +----------+
+        ;; a            b lb    p     ub e          f
+        ;;
+        ;; We have the current point, p, and need to find the bounds
+        ;; of `this tweet', (lb ub).  b is ending point of `prev
+        ;; tweet' and e is the starting point of `next tweet'.  There
+        ;; could be empty whitespace between (b c) and (d e).  We
+        ;; calculate c = (n-s-p-c (p-s-p-c p 'tweet) 'tweet) and
+        ;; calculate d = (p-s-p-c (n-s-p-c p 'tweet) 'tweet), while
+        ;; taking boundary conditions into consideration
+        (let* ((pt (previous-single-property-change point 'tweet buffer))
+               (lb (if pt
+                       (next-single-property-change pt 'tweet buffer (point-max))
+                     (point-min)))
+               (nxtp (next-single-property-change point 'tweet buffer
+                                                  (point-max)))
+               (ub (next-single-property-change point 'tweet buffer
+                                                (point-max)))
+               (new-tweet (twitching-star-tweet tweet)))
+          ;; (setf (twitching-status-favoritedp new-tweet)
+          ;;       (not (twitching-status-favoritedp new-tweet)))
+          ;; (let* ((f (lambda (x)
+          ;;             (if (twitching-status-p x)
+          ;;               (twitching-user-screen-name (twitching-status-user x))
+          ;;               (read-string (format "X=%s [HIT ENTER]" x)))))
+          ;;        (prev (funcall f (get-text-property lb 'tweet)))
+          ;;        (curr (funcall f (get-text-property point 'tweet)))
+          ;;        (next (funcall f (get-text-property ub 'tweet)))
+          ;;        (tnxt (funcall f (get-text-property nxtp 'tweet))))
+          ;;   (read-string (format "(eq prev curr next)%s lb=%s ub=%s dif=%s nxtp=%s: "
+          ;;                        (and (eq prev curr) (eq curr next))
+          ;;                        lb ub (- ub lb) nxtp))
+          ;;   ;(throw 'stop "hammer time")
+          ;;   )
           (when new-tweet
-            (let ((start (progn (beginning-of-line) (point)))
-                  (end (progn (end-of-line) (point))))
-              (delete-region start end)
-              (insert (format "%S" new-tweet))
-              (goto-char start)
-              (twitching-layout start)
-              (goto-char start))))
+            (delete-region lb ub)
+            ;(read-string "deleted region.  [HIT ENTER]")
+            (goto-char lb)
+            ;(read-string (format "at lb(%s). [HIT ENTER]" lb))
+            (let* ((text (format "%S\n" new-tweet))
+                   (ub (+ lb (length text))))
+              (insert text)
+              (set-text-properties lb ub 'nil buffer)
+              ;(read-string (format "inserted text. [HIT ENTER]"))
+              (twitching-render-region (point-min) (point-max)))))
       (message "No tweet at point."))))
 
 (defun twitching-create-filter ()
