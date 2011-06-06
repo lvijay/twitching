@@ -352,9 +352,9 @@ takes one argument."
 
 ;; keymap
 (defvar twitching-mode-map
-  (let ((keymap (make-keymap))
+  (let ((keymap (make-sparse-keymap))
         (nodigits t))
-    (suppress-keymap keymap nodigits)
+    ;(suppress-keymap keymap nodigits)
     (define-key keymap (kbd "n")      'twitching-next-tweet)
     (define-key keymap (kbd "C-n")    'twitching-next-tweet)
     (define-key keymap (kbd "j")      'twitching-next-tweet)
@@ -366,9 +366,16 @@ takes one argument."
     (define-key keymap (kbd "f") 'twitching-create-filter)
     (define-key keymap (kbd "s") 'twitching-favorite-tweet)
     (define-key keymap (kbd "o") 'twitching-open-link)
+    (define-key keymap (kbd "O") 'twitching-open-all-links)
     (define-key keymap (kbd "q") 'bury-buffer)
     (define-key keymap (kbd "SPC") 'scroll-up)
     (define-key keymap (kbd "<backspace>") 'scroll-down)
+    ;; Define prefix command for view
+    (let ((viewmap (make-sparse-keymap)))
+      (suppress-keymap keymap nodigits)
+      (define-key viewmap (kbd "#") 'twitching-open-hashtag)
+      (define-key viewmap (kbd "@") 'twitching-open-mention)
+      (define-key keymap (kbd "v") viewmap))
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
@@ -386,7 +393,6 @@ takes one argument."
          (n (abs n))
          (buffer (get-twitching-buffer))
          (point (point))
-         (starting-point point)
          ending-point)
     (if plusp
         (setq direction #'next-single-property-change
@@ -395,10 +401,8 @@ takes one argument."
         (setq direction #'previous-single-property-change
               limit (point-min)
               test #'>))
-    (dotimes (i n)                      ; layout all interim lines
+    (dotimes (i n)
       (setq ending-point (funcall direction point 'tweet buffer limit)))
-    (save-excursion
-      (twitching-render-region starting-point ending-point))
     (goto-char ending-point)))
 
 (defun twitching-prev-tweet (n)
@@ -409,16 +413,22 @@ takes one argument."
 (defun twitching-open-link (n)
   "Open the N th url in tweet.  Ignored if tweet has no urls."
   (interactive "P")
-  ;(when (not (bolp)) (beginning-of-line))
   (let ((n (or n 0))
         (tweet (get-text-property (point) 'tweet)))
-    (when tweet
-      (let* ((entity (twitching-status-entities tweet))
-             (urls (twitching-entity-urls entity))
-             (url (nth n urls)))
-        (if url
-            (funcall browse-url-browser-function (cdr (assoc 'url url)))
-          (message "No URLs in this tweet."))))))
+    (if tweet
+        (unless (twitching-open-nth-url n tweet)
+          (message "No URLs in this tweet."))
+      (message "No tweet under point."))))
+
+(defun twitching-open-all-links ()
+  "Open all links in the tweet under point.  Ignored if there are
+no URLs in tweet."
+  (let ((tweet (get-text-property (point) 'tweet)))
+    (if tweet
+        (let ((count 0))
+          (while (twitching-open-nth-url count tweet)
+            (setq count (1+ count))))
+      (message "No tweet under point."))))
 
 (defun twitching-favorite-tweet (point)
   "Favorite or unfavorite the tweet at POINT."
@@ -428,8 +438,9 @@ takes one argument."
          (buffer (get-twitching-buffer))
          new-tweet)
     (if tweet
-        ;; since we're using text properties, we need to do extra
-        ;; jugglery to find bounds of this tweet.
+        ;; since we're using text properties, unlike overlays, do not
+        ;; store their bounds, we need to do extra jugglery to find
+        ;; bounds of a tweet.
         ;;
         ;; pictorially:
         ;;
@@ -443,48 +454,94 @@ takes one argument."
         ;; tweet' and e is the starting point of `next tweet'.  There
         ;; could be empty whitespace between (b c) and (d e).  We
         ;; calculate c = (n-s-p-c (p-s-p-c p 'tweet) 'tweet) and
-        ;; calculate d = (p-s-p-c (n-s-p-c p 'tweet) 'tweet), while
-        ;; taking boundary conditions into consideration
-        (let* ((pt (previous-single-property-change point 'tweet buffer))
+        ;; calculate d = (n-s-p-c p 'tweet), while taking boundary
+        ;; conditions into consideration
+        (let* ((point-max (point-max))
+               (pt (previous-single-property-change point 'tweet buffer))
                (lb (if pt
-                       (next-single-property-change pt 'tweet buffer (point-max))
+                       (next-single-property-change pt 'tweet buffer point-max)
                      (point-min)))
-               (nxtp (next-single-property-change point 'tweet buffer
-                                                  (point-max)))
+;;               (nxtp (next-single-property-change point 'tweet buffer
+;;                                                  point-max))
                (ub (next-single-property-change point 'tweet buffer
-                                                (point-max)))
+                                                point-max))
                (new-tweet (twitching-star-tweet tweet)))
-          ;; (setf (twitching-status-favoritedp new-tweet)
-          ;;       (not (twitching-status-favoritedp new-tweet)))
-          ;; (let* ((f (lambda (x)
-          ;;             (if (twitching-status-p x)
-          ;;               (twitching-user-screen-name (twitching-status-user x))
-          ;;               (read-string (format "X=%s [HIT ENTER]" x)))))
-          ;;        (prev (funcall f (get-text-property lb 'tweet)))
-          ;;        (curr (funcall f (get-text-property point 'tweet)))
-          ;;        (next (funcall f (get-text-property ub 'tweet)))
-          ;;        (tnxt (funcall f (get-text-property nxtp 'tweet))))
-          ;;   (read-string (format "(eq prev curr next)%s lb=%s ub=%s dif=%s nxtp=%s: "
-          ;;                        (and (eq prev curr) (eq curr next))
-          ;;                        lb ub (- ub lb) nxtp))
-          ;;   ;(throw 'stop "hammer time")
-          ;;   )
+             (setf (twitching-status-favoritedp new-tweet)
+                   (not (twitching-status-favoritedp new-tweet)))
+;;             (let* ((f (lambda (x)
+;;                         (if (twitching-status-p x)
+;;                             (twitching-user-screen-name (twitching-status-user x))
+;;                           (read-string (format "X=%s [HIT ENTER]" x)))))
+;;                    (prev (funcall f (get-text-property lb 'tweet)))
+;;                    (curr (funcall f (get-text-property point 'tweet)))
+;;                    (next (funcall f (get-text-property ub 'tweet)))
+;;                    (tnxt (funcall f (get-text-property nxtp 'tweet))))
+;;               (read-string (format "(eq prev curr next)%s lb=%s ub=%s dif=%s nxtp=%s: "
+;;                                    (and (eq prev curr) (eq curr next))
+;;                                    lb ub (- ub lb) nxtp))
+;;                                        ;(throw 'stop "hammer time")
+;;               )
           (when new-tweet
             (delete-region lb ub)
-            ;(read-string "deleted region.  [HIT ENTER]")
+;;            (read-string "deleted region.  [HIT ENTER]")
             (goto-char lb)
-            ;(read-string (format "at lb(%s). [HIT ENTER]" lb))
+;;            (read-string (format "at lb(%s). [HIT ENTER]" lb))
             (let* ((text (format "%S\n" new-tweet))
                    (ub (+ lb (length text))))
               (insert text)
               (set-text-properties lb ub 'nil buffer)
-              ;(read-string (format "inserted text. [HIT ENTER]"))
+;;              (read-string (format "inserted text. [HIT ENTER]"))
               (twitching-render-region (point-min) (point-max)))))
       (message "No tweet at point."))))
 
 (defun twitching-create-filter ()
   "Create a twitter filter."
   (interactive))
+
+(defun twitching-open-mention (n)
+  "Open the mentioned twitter user in the tweet under point.
+With a prefix argument, opens the N th user in the tweet.
+Ignored if no users are mentioned in the tweet.  Counting starts
+at 1."
+  (interactive "p")
+  (let ((status (get-text-property (point) 'tweet)))
+    (if status
+        (let* ((entity (twitching-status-entities status))
+               (mentions (twitching-entity-user-mentions entity))
+               (mention (nth (1- n) mentions))
+               (mention (cdr (assoc 'screen_name mention)))
+               (url (concat "https://twitter.com/#!/" mention)))
+          (if mention
+              (funcall browse-url-browser-function url)
+            (message "No mention in tweet.")))
+      (tweet "No tweet at point."))))
+
+(defun twitching-open-hashtag (n)
+  "Open the hashtag in the tweet under point.
+With a prefix argument, opens the N th hashtag in the tweet.
+Ignored if no hashtags are mentioned in tweet.  Counting starts
+at 1."
+  (interactive "p")
+  (let ((status (get-text-property (point) 'tweet)))
+    (if status
+        (let* ((entity (twitching-status-entities status))
+               (hashtags (twitching-entity-hashtags entity))
+               (hashtag (nth (1- n) hashtags))
+               (hashtag (cdr (assoc 'text hashtag)))
+               (url (concat "https://twitter.com/#!/search?q=%23" hashtag)))
+          (if hashtag
+              (funcall browse-url-browser-function url)
+            (message "No hashtag in tweet.")))
+      (tweet "No tweet at point."))))
+
+(defun twitching-open-nth-url (n status)
+  "Opens the N th url in STATUS if it exists."
+  (let* ((n (or n 0))
+         (entity (twitching-status-entities status))
+         (urls (twitching-entity-urls entity))
+         (url (nth n urls)))
+    (when url
+      (funcall browse-url-browser-function (cdr (assoc 'url url))))))
 
 
 ;;; Twitter API interactions
@@ -658,7 +715,7 @@ that return statuses."
 string.  Passes HEADERS with the request and the request is made
 as specified in REQUEST-METHOD.  By default REQUEST-METHOD is
 GET."
-  (let ((url-request-extra-headers (if url-request-extra-headers 
+  (let ((url-request-extra-headers (if url-request-extra-headers
                                        (append url-request-extra-headers headers)
                                      headers))
         (url-request-method (or request-method "GET"))
