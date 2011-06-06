@@ -413,7 +413,7 @@ takes one argument."
 (defun twitching-open-link (n)
   "Open the N th url in tweet.  Ignored if tweet has no urls.
 Counting starts at 1."
-  (interactive "P")
+  (interactive "p")
   (let ((tweet (get-text-property (point) 'tweet)))
     (if tweet
         (unless (twitching-open-nth-url (1- n) tweet)
@@ -466,8 +466,8 @@ no URLs in tweet."
                (ub (next-single-property-change point 'tweet buffer
                                                 point-max))
                (new-tweet (twitching-star-tweet tweet)))
-             (setf (twitching-status-favoritedp new-tweet)
-                   (not (twitching-status-favoritedp new-tweet)))
+;;             (setf (twitching-status-favoritedp new-tweet)
+;;                   (not (twitching-status-favoritedp new-tweet)))
 ;;             (let* ((f (lambda (x)
 ;;                         (if (twitching-status-p x)
 ;;                             (twitching-user-screen-name (twitching-status-user x))
@@ -491,7 +491,8 @@ no URLs in tweet."
               (insert text)
               (set-text-properties lb ub 'nil buffer)
 ;;              (read-string (format "inserted text. [HIT ENTER]"))
-              (twitching-render-region (point-min) (point-max)))))
+              (twitching-render-region (point-min) (point-max)))
+            (goto-char lb)))
       (message "No tweet at point."))))
 
 (defun twitching-create-filter ()
