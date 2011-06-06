@@ -389,21 +389,17 @@ takes one argument."
   (let* ((plusp (plusp n))
          direction
          limit
-         test
          (n (abs n))
          (buffer (get-twitching-buffer))
-         (point (point))
-         ending-point)
+         (point (point)))
     (if plusp
         (setq direction #'next-single-property-change
-              limit (point-max)
-              test #'<)
+              limit (point-max))
         (setq direction #'previous-single-property-change
-              limit (point-min)
-              test #'>))
+              limit (point-min)))
     (dotimes (i n)
-      (setq ending-point (funcall direction point 'tweet buffer limit)))
-    (goto-char ending-point)))
+      (setq point (funcall direction point 'tweet buffer limit)))
+    (goto-char point)))
 
 (defun twitching-prev-tweet (n)
   "Move down N tweets."
