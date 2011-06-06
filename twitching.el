@@ -5,6 +5,7 @@
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
 ;;; Version: 0.3.0
+;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
 ;;;
@@ -24,6 +25,8 @@
 ;;; along with GNU Emacs; see the file COPYING. If not, write to the
 ;;; Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ;;; Boston, MA 02110-1301, USA.
+
+;;; Code:
 
 
 ;;; dependencies
