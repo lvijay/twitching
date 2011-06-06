@@ -411,12 +411,12 @@ takes one argument."
   (twitching-next-tweet (- n)))
 
 (defun twitching-open-link (n)
-  "Open the N th url in tweet.  Ignored if tweet has no urls."
+  "Open the N th url in tweet.  Ignored if tweet has no urls.
+Counting starts at 1."
   (interactive "P")
-  (let ((n (or n 0))
-        (tweet (get-text-property (point) 'tweet)))
+  (let ((tweet (get-text-property (point) 'tweet)))
     (if tweet
-        (unless (twitching-open-nth-url n tweet)
+        (unless (twitching-open-nth-url (1- n) tweet)
           (message "No URLs in this tweet."))
       (message "No tweet under point."))))
 
