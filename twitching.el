@@ -482,11 +482,16 @@ no URLs in tweet."
 ;;                                        ;(throw 'stop "hammer time")
 ;;               )
           (when new-tweet
+            ;; The response does not contain entities which messes up
+            ;; the display.  As a fix, set only the favoritedp field
+            ;; and write the original tweet.
+            (setf (twitching-status-favoritedp tweet)
+                  (twitching-status-favoritedp new-tweet))
             (delete-region lb ub)
 ;;            (read-string "deleted region.  [HIT ENTER]")
             (goto-char lb)
 ;;            (read-string (format "at lb(%s). [HIT ENTER]" lb))
-            (let* ((text (format "%S\n" new-tweet))
+            (let* ((text (format "%S\n" tweet))
                    (ub (+ lb (length text))))
               (insert text)
               (set-text-properties lb ub 'nil buffer)
