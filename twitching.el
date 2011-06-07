@@ -181,7 +181,7 @@ takes one argument."
 ;;; Defines a twitter-entity
 (twitching-defstruct twitching-entity
   (hashtags hashtags)
-  (user_mentions user-mentions)
+  (user_mentions mentions)
   (urls urls))
 
 ;;; Defines a twitter-status
@@ -311,7 +311,7 @@ takes one argument."
   (let* ((text (twitching-status-text status))
          (entity (twitching-status-entities status))
          (urls (twitching-entity-urls entity))
-         (mentions (twitching-entity-user-mentions entity))
+         (mentions (twitching-entity-mentions entity))
          (hashtags (twitching-entity-hashtags entity))
          (properties '((hashtag . *twitching-hashtags-category*)
                        (mention . *twitching-mentions-category*)
@@ -370,12 +370,8 @@ takes one argument."
     (define-key keymap (kbd "q") 'bury-buffer)
     (define-key keymap (kbd "SPC") 'scroll-up)
     (define-key keymap (kbd "<backspace>") 'scroll-down)
-    ;; Define prefix command for view
-    (let ((viewmap (make-sparse-keymap)))
-      (suppress-keymap keymap nodigits)
-      (define-key viewmap (kbd "#") 'twitching-open-hashtag)
-      (define-key viewmap (kbd "@") 'twitching-open-mention)
-      (define-key keymap (kbd "v") viewmap))
+    (define-key viewmap (kbd "#") 'twitching-open-hashtag)
+    (define-key viewmap (kbd "@") 'twitching-open-mention)
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
@@ -406,26 +402,6 @@ takes one argument."
   (interactive "p")
   (twitching-next-tweet (- n)))
 
-(defun twitching-open-link (n)
-  "Open the N th url in tweet.  Ignored if tweet has no urls.
-Counting starts at 1."
-  (interactive "p")
-  (let ((tweet (get-text-property (point) 'tweet)))
-    (if tweet
-        (unless (twitching-open-nth-url (1- n) tweet)
-          (message "No URLs in this tweet."))
-      (message "No tweet under point."))))
-
-(defun twitching-open-all-links ()
-  "Open all links in the tweet under point.  Ignored if there are
-no URLs in tweet."
-  (let ((tweet (get-text-property (point) 'tweet)))
-    (if tweet
-        (let ((count 0))
-          (while (twitching-open-nth-url count tweet)
-            (setq count (1+ count))))
-      (message "No tweet under point."))))
-
 (defun twitching-favorite-tweet (point)
   "Favorite or unfavorite the tweet at POINT."
   (interactive "d")
@@ -454,29 +430,20 @@ no URLs in tweet."
         ;; conditions into consideration
         (let* ((point-max (point-max))
                (pt (previous-single-property-change point 'tweet buffer))
+               (prev-tweet (get-text-property pt 'tweet buffer))
+               ;; Below check needed because if point, `p' was in the
+               ;; middle of a tweet when this function is called, then
+               ;; pt originally evalutes to `lb' and then `lb'
+               ;; evaluates into `e'.
+               (pt (if (eq tweet prev-tweet)
+                       (previous-single-property-change pt 'tweet buffer)
+                     pt))
                (lb (if pt
                        (next-single-property-change pt 'tweet buffer point-max)
                      (point-min)))
-;;               (nxtp (next-single-property-change point 'tweet buffer
-;;                                                  point-max))
                (ub (next-single-property-change point 'tweet buffer
                                                 point-max))
                (new-tweet (twitching-star-tweet tweet)))
-;;             (setf (twitching-status-favoritedp new-tweet)
-;;                   (not (twitching-status-favoritedp new-tweet)))
-;;             (let* ((f (lambda (x)
-;;                         (if (twitching-status-p x)
-;;                             (twitching-user-screen-name (twitching-status-user x))
-;;                           (read-string (format "X=%s [HIT ENTER]" x)))))
-;;                    (prev (funcall f (get-text-property lb 'tweet)))
-;;                    (curr (funcall f (get-text-property point 'tweet)))
-;;                    (next (funcall f (get-text-property ub 'tweet)))
-;;                    (tnxt (funcall f (get-text-property nxtp 'tweet))))
-;;               (read-string (format "(eq prev curr next)%s lb=%s ub=%s dif=%s nxtp=%s: "
-;;                                    (and (eq prev curr) (eq curr next))
-;;                                    lb ub (- ub lb) nxtp))
-;;                                        ;(throw 'stop "hammer time")
-;;               )
           (when new-tweet
             ;; The response does not contain entities which messes up
             ;; the display.  As a fix, set only the favoritedp field
@@ -484,14 +451,11 @@ no URLs in tweet."
             (setf (twitching-status-favoritedp tweet)
                   (twitching-status-favoritedp new-tweet))
             (delete-region lb ub)
-;;            (read-string "deleted region.  [HIT ENTER]")
             (goto-char lb)
-;;            (read-string (format "at lb(%s). [HIT ENTER]" lb))
             (let* ((text (format "%S\n" tweet))
                    (ub (+ lb (length text))))
               (insert text)
               (set-text-properties lb ub 'nil buffer)
-;;              (read-string (format "inserted text. [HIT ENTER]"))
               (twitching-render-region (point-min) (point-max)))
             (goto-char lb)))
       (message "No tweet at point."))))
@@ -500,23 +464,33 @@ no URLs in tweet."
   "Create a twitter filter."
   (interactive))
 
+(defun twitching-open-link (n)
+  "Open the N th url in tweet.  Ignored if tweet has no urls.
+Counting starts at 1."
+  (interactive "p")
+  (unless (twitching-open-entity (point) #'twitching-entity-urls
+                                 'url n nil)
+    (message "No URLs in this tweet.")))
+
+(defun twitching-open-all-links ()
+  "Open all links in the tweet under point.  Ignored if there are
+no URLs in tweet."
+  (interactive)
+  (let ((count 1))
+    (while (twitching-open-entity (point) #'twitching-entity-urls
+                                  'url count nil)
+      (setq count (1+ count)))))
+
 (defun twitching-open-mention (n)
   "Open the mentioned twitter user in the tweet under point.
 With a prefix argument, opens the N th user in the tweet.
 Ignored if no users are mentioned in the tweet.  Counting starts
 at 1."
   (interactive "p")
-  (let ((status (get-text-property (point) 'tweet)))
-    (if status
-        (let* ((entity (twitching-status-entities status))
-               (mentions (twitching-entity-user-mentions entity))
-               (mention (nth (1- n) mentions))
-               (mention (cdr (assoc 'screen_name mention)))
-               (url (concat "https://twitter.com/#!/" mention)))
-          (if mention
-              (funcall browse-url-browser-function url)
-            (message "No mention in tweet.")))
-      (tweet "No tweet at point."))))
+  (unless (twitching-open-entity (point) #'twitching-entity-mentions
+                                 'screen_name n
+                                 "https://twitter.com/#!/")
+    (message "No mention in tweet.")))
 
 (defun twitching-open-hashtag (n)
   "Open the hashtag in the tweet under point.
@@ -524,26 +498,22 @@ With a prefix argument, opens the N th hashtag in the tweet.
 Ignored if no hashtags are mentioned in tweet.  Counting starts
 at 1."
   (interactive "p")
-  (let ((status (get-text-property (point) 'tweet)))
-    (if status
-        (let* ((entity (twitching-status-entities status))
-               (hashtags (twitching-entity-hashtags entity))
-               (hashtag (nth (1- n) hashtags))
-               (hashtag (cdr (assoc 'text hashtag)))
-               (url (concat "https://twitter.com/#!/search?q=%23" hashtag)))
-          (if hashtag
-              (funcall browse-url-browser-function url)
-            (message "No hashtag in tweet.")))
-      (tweet "No tweet at point."))))
+  (unless (twitching-open-entity (point) #'twitching-entity-hashtags
+                                 'text n
+                                 "https://twitter.com/#!/search?q=%23")
+    (message "No hashtag in tweet.")))
 
-(defun twitching-open-nth-url (n status)
-  "Opens the N th url in STATUS if it exists."
-  (let* ((n (or n 0))
-         (entity (twitching-status-entities status))
-         (urls (twitching-entity-urls entity))
-         (url (nth n urls)))
-    (when url
-      (funcall browse-url-browser-function (cdr (assoc 'url url))))))
+(defun twitching-open-entity (point entity-elem-fn key n url-prefix)
+  (let ((status (get-text-property point 'tweet)))
+    (if status
+        (let* ((entities (twitching-status-entities status))
+               (elems (funcall entity-elem-fn entities))
+               (elem (nth (1- n) elems))
+               (elem (cdr (assoc key elem)))
+               (url (concat url-prefix elem)))
+          (when elem
+            (funcall browse-url-browser-function url)))
+      (message "No tweet at point."))))
 
 
 ;;; Twitter API interactions
