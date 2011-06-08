@@ -346,6 +346,78 @@ takes one argument."
         (fill-region (point-min) (point-max)))
       (buffer-string))))
 
+(defun find-twitching-status (status buffer)
+  "Returns point at which STATUS is found in BUFFER or nil if it
+could not be found.
+
+Assumes that BUFFER is already rendered."
+  ;; since we're using text properties that, unlike overlays, do not
+  ;; store their bounds, we need to do extra jugglery to find bounds
+  ;; of a tweet.
+  ;;
+  ;; pictorially:
+  ;;
+  ;; +------------+ +------------+ +----------+
+  ;; | prev tweet | | this tweet | |next tweet|
+  ;; +------------+ +------------+ +----------+
+  ;; a            b lb    p     ub e          f
+  ;;
+  ;; We have the current point, p, and need to find the bounds of
+  ;; `this tweet', (lb ub).  b is ending point of `prev tweet' and e
+  ;; is the starting point of `next tweet'.  There could be empty
+  ;; whitespace between (b c) and (d e).  We calculate c = (n-s-p-c
+  ;; (p-s-p-c p 'tweet) 'tweet) and calculate d = (n-s-p-c p 'tweet),
+  ;; while taking boundary conditions into consideration
+  (let ((p (point-min))
+        (id (twitching-status-id status))
+        (continuep 't))
+    (block nil
+      (while continuep
+        (setq status (get-text-property p 'tweet buffer))
+        (when (equal id (twitching-status-id status))
+          (return p))
+        (setq p (next-single-property-change p 'tweet buffer)
+              continuep p)))))
+
+(defun twitching-rerender-tweet (tweet &optional point buffer)
+  "Re-renders TWEET at POINT in BUFFER.  If POINT is nil, it is
+searched for in BUFFER.  If POINT is not nil and the
+twitching-status under POINT does not equal TWEET, returns nil.
+If BUFFER is not provided, `(current-buffer) is assumed. "
+  (when (not point) (setq point (find-twitching-status tweet buffer)))
+  (let* ((status (get-text-property point 'tweet buffer))
+         (id (twitching-status-id tweet))
+         (p point))
+    (if (and (twitching-status-p status)
+             (equal id (twitching-status-id status)))
+        (let* ((point-max (point-max))
+               (b (previous-single-property-change p 'tweet buffer))
+               (prev-tweet (get-text-property b 'tweet buffer))
+               ;; Below check needed because if point, `p' was in the
+               ;; middle of a tweet when this function is called, then
+               ;; b originally evalutes to `lb' and then `lb'
+               ;; evaluates into `e'.
+               (b (if (eq tweet prev-tweet)
+                      (previous-single-property-change b 'tweet buffer)
+                    b))
+               (lb (if b
+                       (next-single-property-change b 'tweet buffer point-max)
+                     (point-min)))
+               (ub (next-single-property-change p 'tweet buffer
+                                                point-max))
+               (tweet (twitching-star-tweet tweet)))
+          (with-twitching-buffer buffer
+            (delete-region lb ub)
+            (goto-char lb)
+            (save-excursion
+              (let* ((text (format "%S\n" tweet))
+                     (length (length text))
+                     (ub (+ lb length)))
+                (insert text)
+                (set-text-properties lb ub 'nil buffer)
+                (twitching-render-region b (point-max) buffer)))))
+      nil)))
+
 
 ;;; Define `twitching-mode'
 (defvar twitching-mode-hook '()
@@ -419,51 +491,7 @@ takes one argument."
          (buffer (get-twitching-buffer))
          new-tweet)
     (if tweet
-        ;; since we're using text properties, unlike overlays, do not
-        ;; store their bounds, we need to do extra jugglery to find
-        ;; bounds of a tweet.
-        ;;
-        ;; pictorially:
-        ;;
-        ;; +------------+ +------------+ +----------+
-        ;; | prev tweet | | this tweet | |next tweet|
-        ;; +------------+ +------------+ +----------+
-        ;; a            b lb    p     ub e          f
-        ;;
-        ;; We have the current point, p, and need to find the bounds
-        ;; of `this tweet', (lb ub).  b is ending point of `prev
-        ;; tweet' and e is the starting point of `next tweet'.  There
-        ;; could be empty whitespace between (b c) and (d e).  We
-        ;; calculate c = (n-s-p-c (p-s-p-c p 'tweet) 'tweet) and
-        ;; calculate d = (n-s-p-c p 'tweet), while taking boundary
-        ;; conditions into consideration
-        (let* ((point-max (point-max))
-               (pt (previous-single-property-change point 'tweet buffer))
-               (prev-tweet (get-text-property pt 'tweet buffer))
-               ;; Below check needed because if point, `p' was in the
-               ;; middle of a tweet when this function is called, then
-               ;; pt originally evalutes to `lb' and then `lb'
-               ;; evaluates into `e'.
-               (pt (if (eq tweet prev-tweet)
-                       (previous-single-property-change pt 'tweet buffer)
-                     pt))
-               (lb (if pt
-                       (next-single-property-change pt 'tweet buffer point-max)
-                     (point-min)))
-               (ub (next-single-property-change point 'tweet buffer
-                                                point-max))
-               (tweet (twitching-star-tweet tweet)))
-          (with-twitching-buffer buffer
-            (delete-region lb ub)
-            (goto-char lb)
-            (save-excursion
-              (let* ((text (format "%S\n" tweet))
-                     (length (length text))
-                     (ub (+ lb length)))
-                (insert text)
-                (set-text-properties lb ub 'nil buffer)
-                (twitching-render-region pt (min (+ ub length) (point-max))
-                                         buffer)))))
+        (twitching-rerender-tweet tweet point buffer)
       (message "No tweet at point."))))
 
 (defun twitching-create-filter ()
