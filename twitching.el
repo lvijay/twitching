@@ -88,7 +88,8 @@ timeline.")
   (interactive)
   (let ((buffer (get-twitching-favorites-buffer))
         (tweets (twitching-get-favorites)))
-    (twitching-write-tweets tweets buffer)))
+    (twitching-write-tweets tweets buffer))
+  (message "retrieved favorites"))
 
 (defun twitching-write-tweets (tweets buffer)
   (let (starting-point
@@ -418,8 +419,7 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
                        (next-single-property-change b 'tweet buffer point-max)
                      (point-min)))
                (ub (next-single-property-change p 'tweet buffer
-                                                point-max))
-               (tweet (twitching-star-tweet tweet)))
+                                                point-max)))
           (with-twitching-buffer buffer
             (delete-region lb ub)
             (goto-char lb)
@@ -502,8 +502,8 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
   "Favorite or unfavorite the tweet at POINT."
   (interactive "d")
   (let* ((tweet (get-text-property point 'tweet))
-         (buffer (get-twitching-buffer))
-         new-tweet)
+         (buffer (current-buffer))
+         (tweet (twitching-star-tweet tweet)))
     (if tweet
         (twitching-rerender-tweet tweet point buffer)
       (message "No tweet at point."))))
@@ -583,7 +583,9 @@ at 1."
 
 (defvar *twitching-favorites-since-id* nil "Last status-id received from twitter.")
 
-(defvar *twitching-count* nil "Number of tweets to fetch")
+(defvar *twitching-count* nil "Number of tweets to fetch.")
+
+(defvar *twitching-page-number* nil "Page number to fetch.")
 
 (defvar *twitching-include-entities* t "sets include_entities to 1 or 0")
 
@@ -592,36 +594,50 @@ at 1."
 `twitching-status'es."
   (twitching-check-keys)
   (let* ((url "http://api.twitter.com/1/statuses/home_timeline.json")
-         (params (twitching-home-timeline-params))
-         (statuses (twitching-get-statuses url params)))
-    (when statuses
-      (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
-                             statuses :key #'twitching-status-id)))
-        (setq *twitching-since-id* highest)))
-    statuses))
+         (*twitching-count* 200)
+         (result (twitching-keep-getting-statuses url)))
+    (when result
+      (setq *twitching-since-id* (cdr result)))
+    (car result)))
 
 (defun twitching-get-favorites ()
   (twitching-check-keys)
   (let* ((url "http://api.twitter.com/1/favorites.json")
-         (params (twitching-favorites-params))
-         (count 1)
-         (continuep 't)
-         statuses)
-    (while continuep
-      (let* ((page (format "%d" count))
-             (params (acons "page" page params))
-             (favs (twitching-get-statuses url params "GET")))
-        (if favs
-            (setq statuses (append statuses favs)
-                  count (1+ count))
-          (setq continuep 'nil))
-        (if (< (length favs) 20)
-            (setq continuep 'nil))))
+         (*twitching-count* 'nil)       ; unused for favorites
+         (*twitching-since-id* *twitching-favorites-since-id*)
+         (result (twitching-keep-getting-statuses url t)))
+    (when result
+      (setq *twitching-favorites-since-id* (cdr result)))
+    (car result)))
+
+(defun twitching-keep-getting-statuses (url &optional fullyp)
+  "Continually makes GET calls on URL by incrementing the page
+number to fetch.  If FULLYP and `*twitching-since-id*' are nil,
+however, it does this only once.  Returns the cons (statuses
+. since_id) where since_id is the highest since_id in the
+response or nil if there was no response."
+  (let ((page 1)
+        (continuep 't)
+        (*twitching-count* 20)          ; DELETE THIS LINE
+        (count (or *twitching-count* 20))
+        statuses)
+    (if (and (not *twitching-since-id*) (not fullyp))
+        (setq statuses (twitching-get-statuses url (twitching-get-params)))
+      (progn
+        (while continuep
+          (let* ((*twitching-page-number* page)
+                 (params (twitching-get-params))
+                 (stats (twitching-get-statuses url params "GET")))
+            (if stats
+                (setq statuses (append statuses stats)
+                      page (1+ page))
+              (setq continuep 'nil))
+            (if (< (length stats) count)
+                (setq continuep 'nil))))))
     (when statuses
       (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
                              statuses :key #'twitching-status-id)))
-        (setq *twitching-favorites-since-id* highest)))
-    (reverse statuses)))
+        (cons statuses highest)))))
 
 (defun twitching-check-keys ()
   "Checks if `*twitching-consumer-key*'
@@ -740,9 +756,8 @@ RESPONSE."
                       (url-insert-entities-in-string2 (cdr param))
                       "&"))))
 
-(defun twitching-home-timeline-params ()
-  "Returns parameters since_id, count etc., needed for home
-timeline."
+(defun twitching-get-params ()
+  "Returns parameters since_id, count etc."
   (let (params)
     (when *twitching-since-id*
       (setq params (acons "since_id" (format "%s" *twitching-since-id*) params)))
@@ -750,16 +765,8 @@ timeline."
       (setq params (acons "count" (format "%s" *twitching-count*) params)))
     (when *twitching-include-entities*
       (setq params (acons "include_entities" "1" params)))
-    params))
-
-(defun twitching-favorites-params ()
-  "Returns parameters since_id, count etc., needed for
-favorites."
-  (let (params)
-    (when *twitching-favorites-since-id*
-      (setq params (acons "since_id" (format "%s" *twitching-since-id*) params)))
-    (when *twitching-include-entities*
-      (setq params (acons "include_entities" "1" params)))
+    (when *twitching-page-number*
+      (setq params (acons "page" (format "%d" *twitching-page-number*) params)))
     params))
 
 (defun twitching-json-truth-value (val)
