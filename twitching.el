@@ -251,7 +251,7 @@ takes one argument."
 (defvar *twitching-star-category*
   (put '*twitching-star-category* 'face '((:background "yellow"))))
 
-(defvar *twitching-star* (propertize "\x2605\ "
+(defvar *twitching-star* (propertize " \x2605\  "
                                      'category '*twitching-star-category*)
   "String used to represent starred tweets.")
 
@@ -302,7 +302,7 @@ takes one argument."
          (created-at (propertize created-at
                                  'category '*twitching-timestamp-category*))
          (line (concat screen-name sep user-name sep created-at)))
-    (when favoritedp (setq line (concat line sep *twitching-star*)))
+    (when favoritedp (setq line (concat line *twitching-star*)))
     (when retweetedp (setq line (concat *twitching-retweet* sep line)))
     line))
 
