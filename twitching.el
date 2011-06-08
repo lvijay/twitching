@@ -77,12 +77,11 @@ timeline.")
 (defun twitching-home-timeline-get ()
   "Fetch home timeline."
   (interactive)
-  (let ((twitching-buffer (get-twitching-buffer))
+  (let ((buffer (get-twitching-buffer))
         (tweets (twitching-get-home-timeline))
         starting-point
         ending-point)
-    (with-current-buffer twitching-buffer
-      (twitching-mode)
+    (with-twitching-buffer buffer
       (save-excursion
         (setq starting-point (point-max))
         (goto-char starting-point)
@@ -91,9 +90,9 @@ timeline.")
                   (insert tweet)))
               tweets)
         (setq ending-point (point))))
-    (with-current-buffer twitching-buffer
+    (with-twitching-buffer buffer
       (save-excursion
-        (twitching-render-region starting-point ending-point))))
+        (twitching-render-region starting-point ending-point buffer))))
   (message "retrieved tweets"))
 
 ;;;###autoload
@@ -265,27 +264,27 @@ takes one argument."
 
 (defvar *twitching-fill-column* 70 "Set this to manipulate `fill-column'.")
 
-(defun twitching-render-region (start end)
-  "Renders the region in START and END.  Continually reads
+(defun twitching-render-region (start end buffer)
+  "Renders the region in START and END in BUFFER.  Reads
 `twitching-status'es in the region and renders each of them."
   (when (> start end) (rotatef start end))
-  (let ((string (buffer-substring-no-properties start end))
-        (buffer (get-twitching-buffer))
-        result
-        (read-start 0))
-    (while (ignore-errors (setq result (read-from-string string read-start)))
-      (let* ((status (car result))
-             (read-end (cdr result))
-             (line1 (twitching-decorate-title-text status))
-             (line2 (twitching-decorate-status-text status))
-             (newline *twitching-newline*)
-             (display (concat line1 newline line2 newline))
-             (buf-start (+ start read-start))
-             (buf-end (+ start read-end)))
-        (set-text-properties buf-start buf-end nil buffer)
-        (put-text-property buf-start buf-end 'display display)
-        (put-text-property buf-start buf-end 'tweet status)
-        (setq read-start read-end)))))
+  (with-twitching-buffer buffer
+    (let ((string (buffer-substring-no-properties start end))
+          result
+          (read-start 0))
+      (while (ignore-errors (setq result (read-from-string string read-start)))
+        (let* ((status (car result))
+               (read-end (cdr result))
+               (line1 (twitching-decorate-title-text status))
+               (line2 (twitching-decorate-status-text status))
+               (newline *twitching-newline*)
+               (display (concat line1 newline line2 newline))
+               (buf-start (+ start read-start))
+               (buf-end (+ start read-end)))
+          (set-text-properties buf-start buf-end nil buffer)
+          (put-text-property buf-start buf-end 'display display)
+          (put-text-property buf-start buf-end 'tweet status)
+          (setq read-start read-end))))))
 
 (defun twitching-decorate-title-text (status)
   (let* ((created-at (twitching-status-created-at status))
@@ -372,12 +371,21 @@ takes one argument."
     (define-key keymap (kbd "q") 'bury-buffer)
     (define-key keymap (kbd "SPC") 'scroll-up)
     (define-key keymap (kbd "<backspace>") 'scroll-down)
-    (define-key viewmap (kbd "#") 'twitching-open-hashtag)
-    (define-key viewmap (kbd "@") 'twitching-open-mention)
+    (define-key keymap (kbd "#") 'twitching-open-hashtag)
+    (define-key keymap (kbd "@") 'twitching-open-mention)
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
   "Major mode for viewing tweets. \\{twitching-mode-map}")
+
+(defmacro with-twitching-buffer (buffer &rest body)
+  (declare (indent 1))
+  `(with-current-buffer ,buffer
+     (twitching-mode)
+     (toggle-read-only -1)
+     (unwind-protect 
+         ,@body
+       (toggle-read-only +1))))
 
 
 ;;; Mode interactive functions
@@ -444,13 +452,8 @@ takes one argument."
                      (point-min)))
                (ub (next-single-property-change point 'tweet buffer
                                                 point-max))
-               (new-tweet (twitching-star-tweet tweet)))
-          (when new-tweet
-            ;; Twitter's response does not contain entities which
-            ;; messes up the display.  As a fix, set only the
-            ;; favoritedp field and write the original tweet.
-            (setf (twitching-status-favoritedp tweet)
-                  (twitching-status-favoritedp new-tweet))
+               (tweet (twitching-star-tweet tweet)))
+          (with-twitching-buffer buffer
             (delete-region lb ub)
             (goto-char lb)
             (save-excursion
@@ -459,7 +462,8 @@ takes one argument."
                      (ub (+ lb length)))
                 (insert text)
                 (set-text-properties lb ub 'nil buffer)
-                (twitching-render-region pt (min (+ ub length) (point-max)))))))
+                (twitching-render-region pt (min (+ ub length) (point-max))
+                                         buffer)))))
       (message "No tweet at point."))))
 
 (defun twitching-create-filter ()
@@ -612,8 +616,14 @@ is GET."
          (response (twitching-oauth-get-http-response url nil "POST")))
     (when (twitching-request-success-p response)
       (let* ((body (twitching-extract-response-body response))
-             (status (json-read-from-string body)))
-        (new-twitching-status status)))))
+             (status (json-read-from-string body))
+             (new-tweet (new-twitching-status status)))
+        ;; the response from twitter does not contain the entities in
+        ;; the original.  So we set the favoritedp status from the
+        ;; response in the original tweet and return the original.
+        (setf (twitching-status-favoritedp tweet)
+              (twitching-status-favoritedp new-tweet))
+        tweet))))
 
 (defun twitching-oauth-get-http-response (url params method)
   "Form an oauth request from URL with PARAMS and METHOD and
