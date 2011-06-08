@@ -446,9 +446,9 @@ takes one argument."
                                                 point-max))
                (new-tweet (twitching-star-tweet tweet)))
           (when new-tweet
-            ;; The response does not contain entities which messes up
-            ;; the display.  As a fix, set only the favoritedp field
-            ;; and write the original tweet.
+            ;; Twitter's response does not contain entities which
+            ;; messes up the display.  As a fix, set only the
+            ;; favoritedp field and write the original tweet.
             (setf (twitching-status-favoritedp tweet)
                   (twitching-status-favoritedp new-tweet))
             (delete-region lb ub)
