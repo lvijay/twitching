@@ -455,10 +455,11 @@ takes one argument."
             (goto-char lb)
             (save-excursion
               (let* ((text (format "%S\n" tweet))
-                     (ub (+ lb (length text))))
+                     (length (length text))
+                     (ub (+ lb length)))
                 (insert text)
                 (set-text-properties lb ub 'nil buffer)
-                (twitching-render-region pt (point-max))))))
+                (twitching-render-region pt (min (+ ub length) (point-max)))))))
       (message "No tweet at point."))))
 
 (defun twitching-create-filter ()
