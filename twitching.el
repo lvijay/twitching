@@ -78,8 +78,20 @@ timeline.")
   "Fetch home timeline."
   (interactive)
   (let ((buffer (get-twitching-buffer))
-        (tweets (twitching-get-home-timeline))
-        starting-point
+        (tweets (twitching-get-home-timeline)))
+    (twitching-write-tweets tweets buffer))
+  (message "retrieved tweets"))
+
+;;;###autoload
+(defun twitching-show-favorites ()
+  "Show favorited tweets"
+  (interactive)
+  (let ((buffer (get-twitching-favorites-buffer))
+        (tweets (twitching-get-favorites)))
+    (twitching-write-tweets tweets buffer)))
+
+(defun twitching-write-tweets (tweets buffer)
+  (let (starting-point
         ending-point)
     (with-twitching-buffer buffer
       (save-excursion
@@ -92,8 +104,7 @@ timeline.")
         (setq ending-point (point))))
     (with-twitching-buffer buffer
       (save-excursion
-        (twitching-render-region starting-point ending-point buffer))))
-  (message "retrieved tweets"))
+        (twitching-render-region starting-point ending-point buffer)))))
 
 ;;;###autoload
 (defun twitching-stop ()
@@ -108,6 +119,9 @@ timeline.")
 
 (defun get-twitching-buffer ()
   (get-buffer-create "*Twitching*"))
+
+(defun get-twitching-favorites-buffer ()
+  (get-buffer-create "*Favorite Tweets*"))
 
 
 ;;; struct definitions
@@ -468,7 +482,7 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
          direction
          limit
          (n (abs n))
-         (buffer (get-twitching-buffer))
+         (buffer (current-buffer))
          (point (point)))
     (if plusp
         (setq direction #'next-single-property-change
@@ -567,6 +581,8 @@ at 1."
 
 (defvar *twitching-since-id* nil "Last status-id received from twitter.")
 
+(defvar *twitching-favorites-since-id* nil "Last status-id received from twitter.")
+
 (defvar *twitching-count* nil "Number of tweets to fetch")
 
 (defvar *twitching-include-entities* t "sets include_entities to 1 or 0")
@@ -576,13 +592,36 @@ at 1."
 `twitching-status'es."
   (twitching-check-keys)
   (let* ((url "http://api.twitter.com/1/statuses/home_timeline.json")
-         (params (twitching-default-params))
+         (params (twitching-home-timeline-params))
          (statuses (twitching-get-statuses url params)))
     (when statuses
       (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
                              statuses :key #'twitching-status-id)))
         (setq *twitching-since-id* highest)))
     statuses))
+
+(defun twitching-get-favorites ()
+  (twitching-check-keys)
+  (let* ((url "http://api.twitter.com/1/favorites.json")
+         (params (twitching-favorites-params))
+         (count 1)
+         (continuep 't)
+         statuses)
+    (while continuep
+      (let* ((page (format "%d" count))
+             (params (acons "page" page params))
+             (favs (twitching-get-statuses url params "GET")))
+        (if favs
+            (setq statuses (append statuses favs)
+                  count (1+ count))
+          (setq continuep 'nil))
+        (if (< (length favs) 20)
+            (setq continuep 'nil))))
+    (when statuses
+      (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
+                             statuses :key #'twitching-status-id)))
+        (setq *twitching-favorites-since-id* highest)))
+    (reverse statuses)))
 
 (defun twitching-check-keys ()
   "Checks if `*twitching-consumer-key*'
@@ -646,9 +685,9 @@ is GET."
       (let* ((body (twitching-extract-response-body response))
              (status (json-read-from-string body))
              (new-tweet (new-twitching-status status)))
-        ;; the response from twitter does not contain the entities in
-        ;; the original.  So we set the favoritedp status from the
-        ;; response in the original tweet and return the original.
+        ;; Because we don't set "include_entities=1" in this request,
+        ;; they aren't sent by twitter.  So we set the favorited
+        ;; status manually.
         (setf (twitching-status-favoritedp tweet)
               (twitching-status-favoritedp new-tweet))
         tweet))))
@@ -701,14 +740,24 @@ RESPONSE."
                       (url-insert-entities-in-string2 (cdr param))
                       "&"))))
 
-(defun twitching-default-params ()
-  "Returns parameters since_id, count etc., needed for methods
-that return statuses."
+(defun twitching-home-timeline-params ()
+  "Returns parameters since_id, count etc., needed for home
+timeline."
   (let (params)
     (when *twitching-since-id*
       (setq params (acons "since_id" (format "%s" *twitching-since-id*) params)))
     (when *twitching-count*
       (setq params (acons "count" (format "%s" *twitching-count*) params)))
+    (when *twitching-include-entities*
+      (setq params (acons "include_entities" "1" params)))
+    params))
+
+(defun twitching-favorites-params ()
+  "Returns parameters since_id, count etc., needed for
+favorites."
+  (let (params)
+    (when *twitching-favorites-since-id*
+      (setq params (acons "since_id" (format "%s" *twitching-since-id*) params)))
     (when *twitching-include-entities*
       (setq params (acons "include_entities" "1" params)))
     params))
