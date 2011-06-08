@@ -289,6 +289,8 @@ takes one argument."
 
 (defun twitching-decorate-title-text (status)
   (let* ((created-at (twitching-status-created-at status))
+         (created-at (format-time-string "%a %b %d %H:%M:%S %z %Y"
+                                         (date-to-time created-at)))
          (user (twitching-status-user status))
          (screen-name (twitching-user-screen-name user))
          (user-name (twitching-user-name user))
