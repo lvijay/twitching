@@ -204,7 +204,7 @@ takes one argument."
   (coordinates coordinates))
 
 
-;;; render
+;;; Rendering section
 (defvar *twitching-screen-name-category*
   (put '*twitching-screen-name-category* 'face '((:weight bold)
                                                  (:background "MidnightBlue")
@@ -407,8 +407,7 @@ takes one argument."
 (defun twitching-favorite-tweet (point)
   "Favorite or unfavorite the tweet at POINT."
   (interactive "d")
-  (let* ((point (point))
-         (tweet (get-text-property point 'tweet))
+  (let* ((tweet (get-text-property point 'tweet))
          (buffer (get-twitching-buffer))
          new-tweet)
     (if tweet
@@ -454,12 +453,12 @@ takes one argument."
                   (twitching-status-favoritedp new-tweet))
             (delete-region lb ub)
             (goto-char lb)
-            (let* ((text (format "%S\n" tweet))
-                   (ub (+ lb (length text))))
-              (insert text)
-              (set-text-properties lb ub 'nil buffer)
-              (twitching-render-region (point-min) (point-max)))
-            (goto-char lb)))
+            (save-excursion
+              (let* ((text (format "%S\n" tweet))
+                     (ub (+ lb (length text))))
+                (insert text)
+                (set-text-properties lb ub 'nil buffer)
+                (twitching-render-region pt (point-max))))))
       (message "No tweet at point."))))
 
 (defun twitching-create-filter ()
