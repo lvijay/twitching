@@ -735,12 +735,8 @@ return the response as a string."
    (oauth-access-token-auth-t *twitching-oauth-access-token*)))
 
 (defun twitching-request-success-p (response)
-  "Returns t if RESPONSE contains 'HTTP/1.1 200 OK'"
-  ;; This is poorly implemented.  Splitting the entire response just
-  ;; to check the first line is very inefficient.
-  (let* ((resp response)
-         (lines (split-string resp "[\n]" t)))
-    (string= (car lines) "HTTP/1.1 200 OK")))
+  "Returns t if RESPONSE contains \"HTTP/1.1 200 OK\""
+  (string-match-p "HTTP/1.1 200 OK" response))
 
 (defun twitching-extract-response-body (response)
   "Extracts the response body, ignoring the headers from
@@ -753,7 +749,8 @@ RESPONSE."
 
 (defun twitching-form-url (url params-alist)
   "Form the full url with its query parameters from URL and PARAMS-ALIST"
-  (unless (string-ends-with-p url "?") (setq url (concat url "?")))
+  (unless (string-match-p (concat (regexp-quote "?") "$") url)
+    (setq url (concat url "?")))
   (dolist (param params-alist url)
     (setq url (concat url
                       (url-insert-entities-in-string2 (car param))
@@ -801,24 +798,6 @@ GET."
       (sleep-for 1))
     (if (> count limit) (message "request timed out."))
     response))
-
-(defun string-ends-with-p (string substring)
-  "Return t if STRING ends with SUBSTRING"
-  (let ((string-len (length string))
-        (substring-len (length substring)))
-    (if (> substring-len string-len)
-        nil
-      (let ((end (substring string (- string-len substring-len))))
-        (string= substring end)))))
-
-(defun string-starts-with-p (string substring)
-  "Return t if STRING starts with SUBSTRING."
-  (let ((string-len (length string))
-        (substr-len (length substring)))
-    (if (> substr-len string-len)
-        nil
-      (let ((start (substring string 0 substr-len)))
-        (string= substring start)))))
 
 (defun url-insert-entities-in-string2 (s)
   "Same as url-insert-entities-in-string, but in addition,
