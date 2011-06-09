@@ -366,23 +366,6 @@ takes one argument."
 could not be found.
 
 Assumes that BUFFER is already rendered."
-  ;; since we're using text properties that, unlike overlays, do not
-  ;; store their bounds, we need to do extra jugglery to find bounds
-  ;; of a tweet.
-  ;;
-  ;; pictorially:
-  ;;
-  ;; +------------+ +------------+ +----------+
-  ;; | prev tweet | | this tweet | |next tweet|
-  ;; +------------+ +------------+ +----------+
-  ;; a            b lb    p     ub e          f
-  ;;
-  ;; We have the current point, p, and need to find the bounds of
-  ;; `this tweet', (lb ub).  b is ending point of `prev tweet' and e
-  ;; is the starting point of `next tweet'.  There could be empty
-  ;; whitespace between (b c) and (d e).  We calculate c = (n-s-p-c
-  ;; (p-s-p-c p 'tweet) 'tweet) and calculate d = (n-s-p-c p 'tweet),
-  ;; while taking boundary conditions into consideration
   (let ((p (point-min))
         (id (twitching-status-id status))
         (continuep 't))
@@ -403,6 +386,25 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
   (let* ((status (get-text-property point 'tweet buffer))
          (id (twitching-status-id tweet))
          (p point))
+    ;; since we're using text properties that, unlike overlays, do not
+    ;; store their bounds, we need to do extra jugglery to find bounds
+    ;; of a tweet.
+    ;;
+    ;; pictorially:
+    ;;
+    ;; +------------+ +------------+ +----------+
+    ;; | prev tweet | | this tweet | |next tweet|
+    ;; +------------+ +------------+ +----------+
+    ;; a            b lb    p     ub e          f
+    ;;
+    ;; We have the current point, p, and need to find the bounds of
+    ;; `this tweet', (lb ub).  b is ending point of `prev tweet' and e
+    ;; is the starting point of `next tweet'.  There could be
+    ;; whitespace between (b c) and (d e).
+    ;;
+    ;; We calculate c = (n-s-p-c (p-s-p-c p 'tweet) 'tweet) and
+    ;; calculate d = (n-s-p-c p 'tweet), while taking boundary
+    ;; conditions into consideration.
     (if (and (twitching-status-p status)
              (equal id (twitching-status-id status)))
         (let* ((point-max (point-max))
