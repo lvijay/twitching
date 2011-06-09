@@ -800,8 +800,8 @@ GET."
     response))
 
 (defun url-insert-entities-in-string2 (s)
-  "Same as url-insert-entities-in-string, but in addition,
-  replaces spaces with %20"
+  "Same as url-insert-entities-in-string but additionally
+replaces spaces with %20."
   (replace-regexp-in-string " " "%20" (url-insert-entities-in-string s) nil))
 
 (provide 'twitching)
