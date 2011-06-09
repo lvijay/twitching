@@ -168,10 +168,10 @@ takes one argument and returns the object representation."
 ;;; Defines a twitter-user
 (twitching-defstruct twitching-user
   (created_at created-at)
-  (geo_enabled geo-enabled-p #'twitching-json-truth-value)
-  (verified verifiedp #'twitching-json-truth-value)
-  (following followingp #'twitching-json-truth-value)
-  (contributors_enabled contributors-enabled-p #'twitching-json-truth-value)
+  (geo_enabled geo-enabled-p)
+  (verified verifiedp)
+  (following followingp)
+  (contributors_enabled contributors-enabled-p)
   (url url)
   (location location)
   (id_str id)
@@ -180,16 +180,16 @@ takes one argument and returns the object representation."
   (description description)
   (screen_name screen-name)
   (utc_offset utc-offset)
-  (notifications notificationsp #'twitching-json-truth-value)
+  (notifications notificationsp)
   (favourites_count favorites-count)
   (statuses_count statuses-count)
-  (is_translator translatorp #'twitching-json-truth-value)
+  (is_translator translatorp)
   (name name)
   (profile_image_url profile-image-url)
   (friends_count friends-count)
   (time_zone time-zone)
-  (follow_request_sent follow-request-sent-p #'twitching-json-truth-value)
-  (protected protectedp #'twitching-json-truth-value)
+  (follow_request_sent follow-request-sent-p)
+  (protected protectedp)
   (followers_count followers-count))
 
 ;;; Defines a twitter-entity
@@ -201,18 +201,18 @@ takes one argument and returns the object representation."
 ;;; Defines a twitter-status
 (twitching-defstruct twitching-status
   (created_at created-at)
-  (retweeted retweetedp #'twitching-json-truth-value)
+  (retweeted retweetedp)
   (contributors contributors)
   (in_reply_to_status_id_str in-reply-to-status-id)
   (source source)
   (in_reply_to_screen_name in-reply-to-screen-name)
   (retweet_count retweet-count)
-  (favorited favoritedp #'twitching-json-truth-value)
+  (favorited favoritedp)
   (place place)
   (id_str id)
   (entities entities #'new-twitching-entity)
   (text text)
-  (truncated truncatedp #'twitching-json-truth-value)
+  (truncated truncatedp)
   (user user #'new-twitching-user)
   (geo geo)
   (coordinates coordinates))
@@ -689,6 +689,7 @@ is GET."
                    url params-alist (or method "GET"))))
     (when (twitching-request-success-p response)
       (let ((response-body (twitching-extract-response-body response))
+            (json-false 'nil)
             (json-array-type 'list))
         (let ((statuses (json-read-from-string response-body)))
           (mapcar #'new-twitching-status statuses))))))
@@ -770,13 +771,6 @@ RESPONSE."
     (when *twitching-page-number*
       (setq params (acons "page" (format "%d" *twitching-page-number*) params)))
     params))
-
-(defun twitching-json-truth-value (val)
-  "Returns t or nil depending upon the json truth value of VAL."
-  (case val
-    (:json-false nil)
-    (:json-true t)
-    (t val)))
 
 
 ;;; General utility functions that should probably be elsewhere.
