@@ -589,6 +589,8 @@ at 1."
 
 (defvar *twitching-page-number* nil "Page number to fetch.")
 
+(defvar *twitching-page-limit* nil "Maximum number of pages to fetch.")
+
 (defvar *twitching-include-entities* t "sets include_entities to 1 or 0")
 
 (defun twitching-get-home-timeline ()
@@ -597,7 +599,8 @@ at 1."
   (twitching-check-keys)
   (let* ((url "http://api.twitter.com/1/statuses/home_timeline.json")
          (*twitching-count* 200)
-         (result (twitching-keep-getting-statuses url)))
+         (*twitching-page-limit* 10)
+         (result (twitching-keep-getting-statuses url t)))
     (when result
       (setq *twitching-since-id* (cdr result)))
     (car result)))
@@ -630,10 +633,11 @@ response or nil if there was no response."
                  (params (twitching-get-params))
                  (stats (twitching-get-statuses url params "GET")))
             (if stats
-                (setq statuses (append statuses stats)
+                (setq statuses (append stats statuses)
                       page (1+ page))
               (setq continuep 'nil))
-            (if (< (length stats) count)
+            (if (and (numberp *twitching-page-limit*)
+                     (>= page *twitching-page-limit*))
                 (setq continuep 'nil))))))
     (when statuses
       (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
