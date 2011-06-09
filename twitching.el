@@ -618,7 +618,6 @@ however, it does this only once.  Returns the cons (statuses
 response or nil if there was no response."
   (let ((page 1)
         (continuep 't)
-        (*twitching-count* 20)          ; DELETE THIS LINE
         (count (or *twitching-count* 20))
         statuses)
     (if (and (not *twitching-since-id*) (not fullyp))
