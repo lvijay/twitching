@@ -452,7 +452,6 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
     (define-key keymap (kbd "C-p")  'twitching-prev-tweet)
     (define-key keymap (kbd "<up>") 'twitching-prev-tweet)
     (define-key keymap (kbd "k")    'twitching-prev-tweet)
-    (define-key keymap (kbd "f") 'twitching-create-filter)
     (define-key keymap (kbd "s") 'twitching-favorite-tweet)
     (define-key keymap (kbd "o") 'twitching-open-link)
     (define-key keymap (kbd "O") 'twitching-open-all-links)
@@ -461,6 +460,12 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
     (define-key keymap (kbd "<backspace>") 'scroll-down)
     (define-key keymap (kbd "#") 'twitching-open-hashtag)
     (define-key keymap (kbd "@") 'twitching-open-mention)
+    (let ((follow-map (make-sparse-keymap)))
+      (define-key follow-map (kbd "f") 'twitching-follow-user-in-tweet)
+      (define-key follow-map (kbd "u") 'twitching-unfollow-user-in-tweet)
+      (define-key follow-map (kbd "F") 'twitching-follow-user)
+      (define-key follow-map (kbd "U") 'twitching-unfollow-user)
+      (define-key keymap (kbd "f") follow-map))
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
@@ -564,6 +569,64 @@ at 1."
           (when elem
             (funcall browse-url-browser-function url)))
       (message "No tweet at point."))))
+
+(defun twitching-follow-user-in-tweet (n point)
+  "Follows the Nth user in the tweet under point.  Counting
+starts at 1.  If N is zero, follows the user who has tweeted the
+current tweet."
+  (interactive "p\nd")
+  (let ((status (get-text-property point 'tweet)))
+    (twitching-un/follow-user-in-tweet n status nil)))
+
+;; TODO: REMOVE CODE DUPLICATION HERE
+(defun twitching-unfollow-user-in-tweet (n point)
+  "Unfollows the Nth user in the tweet under point.  Counting
+starts at 1.  If N is zero, unfollows the user who has tweeted
+the current tweet."
+  (interactive "p\nd")
+  (let ((status (get-text-property point 'tweet)))
+    (twitching-un/follow-user-in-tweet n status t)))
+
+(defun twitching-un/follow-user-in-tweet (n status unfollowp)
+  (let (screen-name)
+    (if status
+        (progn
+          (if (= n 0)
+              (setq screen-name (twitching-user-screen-name
+                                 (twitching-status-user status)))
+            (let* ((entities (twitching-status-entities status))
+                   (mentions (twitching-entity-mentions entities))
+                   (mention (nth (1- n) mentions))
+                   (username (cdr (assoc 'screen_name mention))))
+              (setq screen-name username)))
+          (if screen-name
+              (twitching-un?follow-user screen-name unfollowp)
+            (message
+             (format "Could not find mention #%d in current tweet." n))))
+      (message "No tweet at point."))))
+
+(defun twitching-follow-user (screen-name)
+  "Get user input for a Twitter SCREEN-NAME and start following
+them."
+  (interactive "sEnter Twitter screen-name: ")
+  (twitching-un?follow-user screen-name nil))
+
+(defun twitching-unfollow-user (screen-name)
+  "Get user input for a Twitter SCREEN-NAME and stop following
+them."
+  (interactive "sEnter Twitter screen-name: ")
+  (twitching-un?follow-user screen-name t))
+
+(defun twitching-un?follow-user (screen-name unfollowp)
+  (let ((action (format "%sfollow" (if unfollowp "un" ""))))
+    (when (y-or-n-p (format "Going to %s '%s'.  Confirm: "
+                            action screen-name))
+      (let ((status (twitching-follow-screen-name screen-name unfollowp)))
+        (case status
+          (200 (message (format "%s %sed." screen-name action)))
+          (404 (message (format "%s does not exist" screen-name)))
+          (403 (message (format "Already %sing %s" action screen-name)))
+          (t (message (format "Received error code %d" status))))))))
 
 
 ;;; Twitter API interactions
@@ -714,6 +777,19 @@ is GET."
               (twitching-status-favoritedp new-tweet))
         tweet))))
 
+(defun twitching-follow-screen-name (screen-name &optional unfollowp)
+  "Follows twitter user with SCREEN-NAME.  If UNFOLLOWP is t,
+then unfollows the user.  Return the HTTP status code."
+  (let* ((url (concat "http://api.twitter.com/1/friendships/"
+                      (if unfollowp "destroy" "create")
+                      ".json"))
+         (method (if unfollowp "DELETE" "POST"))
+         (params `(("screen_name" . ,screen-name)))
+         (response (twitching-oauth-get-http-response url params "POST")))
+    ;; 200 => success
+    ;; 404 => No such user
+    (url-get-http-status-code response)))
+
 (defun twitching-oauth-get-http-response (url params method)
   "Form an oauth request from URL with PARAMS and METHOD and
 return the response as a string."
@@ -737,7 +813,7 @@ return the response as a string."
 
 (defun twitching-request-success-p (response)
   "Returns t if RESPONSE contains \"HTTP/1.1 200 OK\""
-  (string-match-p "HTTP/1.1 200 OK" response))
+  (= 200 (url-get-http-status-code response)))
 
 (defun twitching-extract-response-body (response)
   "Extracts the response body, ignoring the headers from
@@ -792,6 +868,14 @@ GET."
       (sleep-for 1))
     (if (> count limit) (message "request timed out."))
     response))
+
+(defun url-get-http-status-code (response)
+  "Return the http status code in RESPONSE.  Return nil if
+RESPONSE is not a valid HTTP/1.1 response.  The return value is a
+number."
+  (if (string-match "^HTTP/1[.]1 \\([0-9]*\\)" response)
+      (string-to-number (match-string 1 response))
+    'nil))
 
 (defun url-insert-entities-in-string2 (s)
   "Same as url-insert-entities-in-string but additionally
