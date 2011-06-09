@@ -133,7 +133,7 @@ STRUCT-NAME is the name of the represented object.
 FIELDS is a list of triples of the form (json-object-field-name
 struct-field-name key-function).  key-function is optional and is
 IDENTITY by default.  If provided, it must be a function that
-takes one argument."
+takes one argument and returns the object representation."
   (declare (indent 1))
   (let ((constructor-name (intern (concat "make-" (symbol-name struct-name))))
         (new-fun-name (intern (concat "new-" (symbol-name struct-name)))))
