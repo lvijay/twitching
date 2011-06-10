@@ -211,7 +211,7 @@ takes one argument and returns the object representation."
   (place place)
   (id_str id)
   (entities entities #'new-twitching-entity)
-  (text text #'html-decode)
+  (text text)
   (truncated truncatedp)
   (user user #'new-twitching-user)
   (geo geo)
@@ -352,6 +352,7 @@ takes one argument and returns the object representation."
     (setq result
           (mapcar (lambda (idx)
                     (let* ((txt (substring text (first idx) (second idx)))
+                           (txt (html-decode txt))
                            (type (third idx)))
                       (propertize txt 'category (cdr (assoc type properties)))))
                   (reverse result)))
@@ -881,7 +882,7 @@ replaces spaces with %20."
   (replace-regexp-in-string " " "%20" (url-insert-entities-in-string s) nil))
 
 (defun html-decode (string)
-  "Replace all substrings in STRING of the form &#39; with the
+  "Replace all substrings in STRING of the form &#[0-9]+; with the
 equivalent string."
   (let ((rep (lambda (s)
                (if (string= s "&#;")
