@@ -211,7 +211,7 @@ takes one argument and returns the object representation."
   (place place)
   (id_str id)
   (entities entities #'new-twitching-entity)
-  (text text)
+  (text text #'html-decode)
   (truncated truncatedp)
   (user user #'new-twitching-user)
   (geo geo)
@@ -578,7 +578,6 @@ current tweet."
   (let ((status (get-text-property point 'tweet)))
     (twitching-un/follow-user-in-tweet n status nil)))
 
-;; TODO: REMOVE CODE DUPLICATION HERE
 (defun twitching-unfollow-user-in-tweet (n point)
   "Unfollows the Nth user in the tweet under point.  Counting
 starts at 1.  If N is zero, unfollows the user who has tweeted
@@ -619,8 +618,7 @@ them."
 
 (defun twitching-un?follow-user (screen-name unfollowp)
   (let ((action (format "%sfollow" (if unfollowp "un" ""))))
-    (when (y-or-n-p (format "Going to %s '%s'.  Confirm: "
-                            action screen-name))
+    (when (y-or-n-p (format "Going to %s '%s'.  Confirm: " action screen-name))
       (let ((status (twitching-follow-screen-name screen-name unfollowp)))
         (case status
           (200 (message (format "%s %sed." screen-name action)))
@@ -881,6 +879,16 @@ number."
   "Same as url-insert-entities-in-string but additionally
 replaces spaces with %20."
   (replace-regexp-in-string " " "%20" (url-insert-entities-in-string s) nil))
+
+(defun html-decode (string)
+  "Replace all substrings in STRING of the form &#39; with the
+equivalent string."
+  (let ((rep (lambda (s)
+               (if (string= s "&#;")
+                   s
+                 (let ((s (substring s 2 (1- (length s)))))
+                   (string (string-to-number s)))))))
+    (replace-regexp-in-string "&#[0-9]*;" rep string)))
 
 (provide 'twitching)
 
