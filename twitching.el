@@ -78,7 +78,7 @@ timeline.")
   "Fetch home timeline."
   (interactive)
   (let ((buffer (get-twitching-buffer))
-        (tweets (twitching-get-home-timeline)))
+        (tweets (twitching-api-get-home-timeline)))
     (twitching-write-tweets tweets buffer))
   (message "retrieved tweets"))
 
@@ -87,7 +87,7 @@ timeline.")
   "Show favorited tweets"
   (interactive)
   (let ((buffer (get-twitching-favorites-buffer))
-        (tweets (twitching-get-favorites)))
+        (tweets (twitching-api-get-favorites)))
     (twitching-write-tweets tweets buffer))
   (message "retrieved favorites"))
 
@@ -511,7 +511,7 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
   (interactive "d")
   (let* ((tweet (get-text-property point 'tweet))
          (buffer (current-buffer))
-         (tweet (twitching-star-tweet tweet)))
+         (tweet (twitching-api-star-tweet tweet)))
     (if tweet
         (twitching-rerender-tweet tweet point buffer)
       (message "No tweet at point."))))
@@ -620,7 +620,7 @@ them."
 (defun twitching-un?follow-user (screen-name unfollowp)
   (let ((action (format "%sfollow" (if unfollowp "un" ""))))
     (when (y-or-n-p (format "Going to %s '%s'.  Confirm: " action screen-name))
-      (let ((status (twitching-follow-screen-name screen-name unfollowp)))
+      (let ((status (twitching-api-follow-screen-name screen-name unfollowp)))
         (case status
           (200 (message (format "%s %sed." screen-name action)))
           (404 (message (format "%s does not exist" screen-name)))
@@ -629,117 +629,117 @@ them."
 
 
 ;;; Twitter API interactions
-(defvar *twitching-user-dir*
+(defvar *twitching-api-user-dir*
   (expand-file-name (convert-standard-filename "~/.emacs.d/twitching"))
   "Name of the directory where the user's tweets are stored.")
 
-(defvar *twitching-consumer-key* nil "Twitter consumer key.")
+(defvar *twitching-api-consumer-key* nil "Twitter consumer key.")
 
-(defvar *twitching-consumer-secret* nil "Twitter consumer secret.")
+(defvar *twitching-api-consumer-secret* nil "Twitter consumer secret.")
 
-(defvar *twitching-access-token* nil "Twitter access key.")
+(defvar *twitching-api-access-token* nil "Twitter access key.")
 
-(defvar *twitching-access-token-secret* nil "Twitter access token secret.")
+(defvar *twitching-api-access-token-secret* nil "Twitter access token secret.")
 
-(defvar *twitching-oauth-access-token* nil "OAuth access token.")
+(defvar *twitching-api-oauth-access-token* nil "OAuth access token.")
 
-(defvar *twitching-since-id* nil "Last status-id received from twitter.")
+(defvar *twitching-api-since-id* nil "Last status-id received from twitter.")
 
-(defvar *twitching-favorites-since-id* nil "Last status-id received from twitter.")
+(defvar *twitching-api-favorites-since-id* nil "Last status-id received from twitter.")
 
-(defvar *twitching-count* nil "Number of tweets to fetch.")
+(defvar *twitching-api-count* nil "Number of tweets to fetch.")
 
-(defvar *twitching-page-number* nil "Page number to fetch.")
+(defvar *twitching-api-page-number* nil "Page number to fetch.")
 
-(defvar *twitching-page-limit* nil "Maximum number of pages to fetch.")
+(defvar *twitching-api-page-limit* nil "Maximum number of pages to fetch.")
 
-(defvar *twitching-include-entities* t "sets include_entities to 1 or 0")
+(defvar *twitching-api-include-entities* t "sets include_entities to 1 or 0")
 
-(defun twitching-get-home-timeline ()
+(defun twitching-api-get-home-timeline ()
   "Gets the current user's home timeline as a list of
 `twitching-status'es."
-  (twitching-check-keys)
+  (twitching-api-check-keys)
   (let* ((url "http://api.twitter.com/1/statuses/home_timeline.json")
-         (*twitching-count* 200)
-         (*twitching-page-limit* 10)
-         (result (twitching-keep-getting-statuses url t)))
+         (*twitching-api-count* (or *twitching-api-count* 200))
+         (*twitching-api-page-limit* (or *twitching-api-page-limit* 10))
+         (result (twitching-api-keep-getting-statuses url t)))
     (when result
-      (setq *twitching-since-id* (cdr result)))
+      (setq *twitching-api-since-id* (cdr result)))
     (car result)))
 
-(defun twitching-get-favorites ()
-  (twitching-check-keys)
+(defun twitching-api-get-favorites ()
+  (twitching-api-check-keys)
   (let* ((url "http://api.twitter.com/1/favorites.json")
-         (*twitching-count* 'nil)       ; unused for favorites
-         (*twitching-since-id* *twitching-favorites-since-id*)
-         (result (twitching-keep-getting-statuses url t)))
+         (*twitching-api-count* 'nil)       ; unused for favorites
+         (*twitching-api-since-id* *twitching-api-favorites-since-id*)
+         (result (twitching-api-keep-getting-statuses url t)))
     (when result
-      (setq *twitching-favorites-since-id* (cdr result)))
+      (setq *twitching-api-favorites-since-id* (cdr result)))
     (car result)))
 
-(defun twitching-keep-getting-statuses (url &optional fullyp)
+(defun twitching-api-keep-getting-statuses (url &optional fullyp)
   "Continually makes GET calls on URL by incrementing the page
-number to fetch.  If FULLYP and `*twitching-since-id*' are nil,
+number to fetch.  If FULLYP and `*twitching-api-since-id*' are nil,
 however, it does this only once.  Returns the cons (statuses
 . since_id) where since_id is the highest since_id in the
 response or nil if there was no response."
   (let ((page 1)
         (continuep 't)
-        (count (or *twitching-count* 20))
+        (count (or *twitching-api-count* 20))
         statuses)
-    (if (and (not *twitching-since-id*) (not fullyp))
-        (setq statuses (twitching-get-statuses url (twitching-get-params)))
+    (if (and (not *twitching-api-since-id*) (not fullyp))
+        (setq statuses (twitching-api-get-statuses url (twitching-api-get-params)))
       (progn
         (while continuep
-          (let* ((*twitching-page-number* page)
-                 (params (twitching-get-params))
-                 (stats (twitching-get-statuses url params "GET")))
+          (let* ((*twitching-api-page-number* page)
+                 (params (twitching-api-get-params))
+                 (stats (twitching-api-get-statuses url params "GET")))
             (if stats
                 (setq statuses (append stats statuses)
                       page (1+ page))
               (setq continuep 'nil))
-            (if (and (numberp *twitching-page-limit*)
-                     (>= page *twitching-page-limit*))
+            (if (and (numberp *twitching-api-page-limit*)
+                     (>= page *twitching-api-page-limit*))
                 (setq continuep 'nil))))))
     (when statuses
       (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
                              statuses :key #'twitching-status-id)))
         (cons statuses highest)))))
 
-(defun twitching-check-keys ()
-  "Checks if `*twitching-consumer-key*'
-`*twitching-consumer-secret*' `*twitching-access-token*'
-`*twitching-access-token-secret*' have been set.  Requests user
+(defun twitching-api-check-keys ()
+  "Checks if `*twitching-api-consumer-key*'
+`*twitching-api-consumer-secret*' `*twitching-api-access-token*'
+`*twitching-api-access-token-secret*' have been set.  Requests user
 input if they haven't.
 
-If `*twitching-access-token*' `*twitching-access-token-secret*'."
-  (unless *twitching-consumer-key*
-    (setq *twitching-consumer-key*
+If `*twitching-api-access-token*' `*twitching-api-access-token-secret*'."
+  (unless *twitching-api-consumer-key*
+    (setq *twitching-api-consumer-key*
           (read-string "Enter consumer key: ")))
-  (unless *twitching-consumer-secret*
-    (setq *twitching-consumer-secret*
+  (unless *twitching-api-consumer-secret*
+    (setq *twitching-api-consumer-secret*
           (read-string "Enter consumer secret: ")))
-  (unless (or *twitching-access-token* *twitching-access-token-secret*)
+  (unless (or *twitching-api-access-token* *twitching-api-access-token-secret*)
     (let* ((oauth-enable-browse-url t)
            response)
-      (setq response (oauth-authorize-app *twitching-consumer-key*
-                                          *twitching-consumer-secret*
+      (setq response (oauth-authorize-app *twitching-api-consumer-key*
+                                          *twitching-api-consumer-secret*
                                           +twitter-oauth-request-url+
                                           +twitter-oauth-access-url+
                                           +twitter-oauth-authorize-url+))
-      (setq *twitching-access-token*
+      (setq *twitching-api-access-token*
             (oauth-t-token (oauth-access-token-auth-t response))
-            *twitching-access-token-secret*
+            *twitching-api-access-token-secret*
             (oauth-t-token-secret (oauth-access-token-auth-t response)))))
-  (setq *twitching-oauth-access-token*
+  (setq *twitching-api-oauth-access-token*
         (make-oauth-access-token
-         :consumer-key *twitching-consumer-key*
-         :consumer-secret *twitching-consumer-secret*
+         :consumer-key *twitching-api-consumer-key*
+         :consumer-secret *twitching-api-consumer-secret*
          :auth-t (make-oauth-t
-                  :token *twitching-access-token*
-                  :token-secret *twitching-access-token-secret*))))
+                  :token *twitching-api-access-token*
+                  :token-secret *twitching-api-access-token-secret*))))
 
-(defun twitching-get-statuses (url params-alist &optional method)
+(defun twitching-api-get-statuses (url params-alist &optional method)
   "Main business logic method to get twitter statuses.  The
 result is returned as a list of type `twitching-status'.
 
@@ -747,16 +747,16 @@ Makes a call to URL with PARAMS-ALIST added to the query-string.
 
 METHOD determines the http method GET or POST.  Default
 is GET."
-  (let ((response (twitching-oauth-get-http-response
+  (let ((response (twitching-api-oauth-get-http-response
                    url params-alist (or method "GET"))))
-    (when (twitching-request-success-p response)
-      (let ((response-body (twitching-extract-response-body response))
+    (when (twitching-api-request-success-p response)
+      (let ((response-body (twitching-api-extract-response-body response))
             (json-false 'nil)
             (json-array-type 'list))
         (let ((statuses (json-read-from-string response-body)))
           (mapcar #'new-twitching-status statuses))))))
 
-(defun twitching-star-tweet (tweet)
+(defun twitching-api-star-tweet (tweet)
   "Favorite or Unfavorite TWEET depending upon its favorited status."
   (let* ((favoritedp (twitching-status-favoritedp tweet))
          (id (twitching-status-id tweet))
@@ -764,9 +764,9 @@ is GET."
                       (if favoritedp "/destroy/" "/create/")
                       id
                       ".json"))
-         (response (twitching-oauth-get-http-response url nil "POST")))
-    (when (twitching-request-success-p response)
-      (let* ((body (twitching-extract-response-body response))
+         (response (twitching-api-oauth-get-http-response url nil "POST")))
+    (when (twitching-api-request-success-p response)
+      (let* ((body (twitching-api-extract-response-body response))
              (status (json-read-from-string body))
              (new-tweet (new-twitching-status status)))
         ;; Because we don't set "include_entities=1" in this request,
@@ -776,7 +776,7 @@ is GET."
               (twitching-status-favoritedp new-tweet))
         tweet))))
 
-(defun twitching-follow-screen-name (screen-name &optional unfollowp)
+(defun twitching-api-follow-screen-name (screen-name &optional unfollowp)
   "Follows twitter user with SCREEN-NAME.  If UNFOLLOWP is t,
 then unfollows the user.  Return the HTTP status code."
   (let* ((url (concat "http://api.twitter.com/1/friendships/"
@@ -784,19 +784,19 @@ then unfollows the user.  Return the HTTP status code."
                       ".json"))
          (method (if unfollowp "DELETE" "POST"))
          (params `(("screen_name" . ,screen-name)))
-         (response (twitching-oauth-get-http-response url params "POST")))
+         (response (twitching-api-oauth-get-http-response url params "POST")))
     ;; 200 => success
     ;; 404 => No such user
     (url-get-http-status-code response)))
 
-(defun twitching-oauth-get-http-response (url params method)
+(defun twitching-api-oauth-get-http-response (url params method)
   "Form an oauth request from URL with PARAMS and METHOD and
 return the response as a string."
-  (let* ((url (twitching-form-url url params))
-         (req (make-twitching-oauth-request url)))
+  (let* ((url (twitching-api-form-url url params))
+         (req (make-api-twitching-oauth-request url)))
     (setf (oauth-request-http-method req) method)
     (oauth-sign-request-hmac-sha1 req (oauth-access-token-consumer-secret
-                                       *twitching-oauth-access-token*))
+                                       *twitching-api-oauth-access-token*))
     (let* ((url (oauth-request-url req))
            (headers (oauth-request-to-header req))
            (request-method (oauth-request-http-method req))
@@ -804,17 +804,17 @@ return the response as a string."
                       url headers request-method)))
       response)))
 
-(defun make-twitching-oauth-request (url)
+(defun make-api-twitching-oauth-request (url)
   (oauth-make-request
    url
-   (oauth-access-token-consumer-key *twitching-oauth-access-token*)
-   (oauth-access-token-auth-t *twitching-oauth-access-token*)))
+   (oauth-access-token-consumer-key *twitching-api-oauth-access-token*)
+   (oauth-access-token-auth-t *twitching-api-oauth-access-token*)))
 
-(defun twitching-request-success-p (response)
+(defun twitching-api-request-success-p (response)
   "Returns t if RESPONSE contains \"HTTP/1.1 200 OK\""
   (= 200 (url-get-http-status-code response)))
 
-(defun twitching-extract-response-body (response)
+(defun twitching-api-extract-response-body (response)
   "Extracts the response body, ignoring the headers from
 RESPONSE."
   (let ((content-start (string-match "\n\n" response)))
@@ -823,7 +823,7 @@ RESPONSE."
             (json-array-type 'list))
         content))))
 
-(defun twitching-form-url (url params-alist)
+(defun twitching-api-form-url (url params-alist)
   "Form the full url with its query parameters from URL and PARAMS-ALIST"
   (unless (string-match-p (concat (regexp-quote "?") "$") url)
     (setq url (concat url "?")))
@@ -834,17 +834,17 @@ RESPONSE."
                       (url-insert-entities-in-string2 (cdr param))
                       "&"))))
 
-(defun twitching-get-params ()
+(defun twitching-api-get-params ()
   "Returns parameters since_id, count etc."
   (let (params)
-    (when *twitching-since-id*
-      (setq params (acons "since_id" (format "%s" *twitching-since-id*) params)))
-    (when *twitching-count*
-      (setq params (acons "count" (format "%s" *twitching-count*) params)))
-    (when *twitching-include-entities*
+    (when *twitching-api-since-id*
+      (setq params (acons "since_id" (format "%s" *twitching-api-since-id*) params)))
+    (when *twitching-api-count*
+      (setq params (acons "count" (format "%s" *twitching-api-count*) params)))
+    (when *twitching-api-include-entities*
       (setq params (acons "include_entities" "1" params)))
-    (when *twitching-page-number*
-      (setq params (acons "page" (format "%d" *twitching-page-number*) params)))
+    (when *twitching-api-page-number*
+      (setq params (acons "page" (format "%d" *twitching-api-page-number*) params)))
     params))
 
 
