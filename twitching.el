@@ -645,7 +645,8 @@ them."
 
 (defvar *twitching-api-since-id* nil "Last status-id received from twitter.")
 
-(defvar *twitching-api-favorites-since-id* nil "Last status-id received from twitter.")
+(defvar *twitching-api-favorites-since-id* nil
+  "Last status-id received from twitter.")
 
 (defvar *twitching-api-count* nil "Number of tweets to fetch.")
 
@@ -688,7 +689,8 @@ response or nil if there was no response."
         (count (or *twitching-api-count* 20))
         statuses)
     (if (and (not *twitching-api-since-id*) (not fullyp))
-        (setq statuses (twitching-api-get-statuses url (twitching-api-get-params)))
+        (setq statuses (twitching-api-get-statuses url
+                                                   (twitching-api-get-params)))
       (progn
         (while continuep
           (let* ((*twitching-api-page-number* page)
@@ -838,13 +840,17 @@ RESPONSE."
   "Returns parameters since_id, count etc."
   (let (params)
     (when *twitching-api-since-id*
-      (setq params (acons "since_id" (format "%s" *twitching-api-since-id*) params)))
+      (setq params (acons "since_id"
+                          (format "%s" *twitching-api-since-id*)
+                          params)))
     (when *twitching-api-count*
       (setq params (acons "count" (format "%s" *twitching-api-count*) params)))
     (when *twitching-api-include-entities*
       (setq params (acons "include_entities" "1" params)))
     (when *twitching-api-page-number*
-      (setq params (acons "page" (format "%d" *twitching-api-page-number*) params)))
+      (setq params (acons "page"
+                          (format "%d" *twitching-api-page-number*)
+                          params)))
     params))
 
 
