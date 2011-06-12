@@ -221,22 +221,26 @@ takes one argument and returns the object representation."
 ;;; Rendering section
 (defvar *twitching-screen-name-category*
   (put '*twitching-screen-name-category* 'face '((:weight bold)
-                                                 (:background "MidnightBlue")
-                                                 (:foreground "gold"))))
+                                                 (:background "white")
+                                                 (:foreground "black")
+                                                 (:overline t))))
 
 (defvar *twitching-user-name-category*
   (put '*twitching-user-name-category* 'face '((:weight bold)
-                                               (:background "MidnightBlue")
-                                               (:foreground "gold"))))
+                                               (:background "white")
+                                               (:foreground "black")
+                                               (:overline t))))
 
 (defvar *twitching-timestamp-category*
-  (put '*twitching-timestamp-category* 'face '((:background "MidnightBlue")
-                                               (:foreground "gold")
+  (put '*twitching-timestamp-category* 'face '((:background "white")
+                                               (:foreground "black")
+                                               (:overline t)
                                                (:weight bold))))
 
 (defvar *twitching-separator-category*
-  (put '*twitching-separator-category* 'face '((:background "MidnightBlue")
-                                               (:foreground "white")
+  (put '*twitching-separator-category* 'face '((:overline t)
+                                               (:background "white")
+                                               (:foreground "black")
                                                (:weight bold))))
 
 (defvar *twitching-separator*
@@ -477,7 +481,7 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
   `(with-current-buffer ,buffer
      (twitching-mode)
      (toggle-read-only -1)
-     (unwind-protect 
+     (unwind-protect
          ,@body
        (toggle-read-only +1))))
 
