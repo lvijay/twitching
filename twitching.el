@@ -74,12 +74,13 @@ timeline.")
                             #'twitching-home-timeline-get)))))
 
 ;;;###autoload
-(defun twitching-home-timeline-get ()
+(defun twitching-home-timeline-get (n)
   "Fetch home timeline."
-  (interactive)
+  (interactive "P")
   (let ((buffer (get-twitching-buffer))
         (tweets (twitching-api-get-home-timeline)))
-    (twitching-write-tweets tweets buffer))
+    (twitching-write-tweets tweets buffer)
+    (when n (switch-to-buffer buffer t)))
   (message "retrieved tweets"))
 
 ;;;###autoload
@@ -391,6 +392,36 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
   (let* ((status (get-text-property point 'tweet buffer))
          (id (twitching-status-id tweet))
          (p point))
+    (if (and (twitching-status-p tweet)
+             (string-equal id (twitching-status-id tweet)))
+        (destructuring-bind (b lb ub) (get-twitching-tweet-bounds p buffer)
+          (with-twitching-buffer buffer
+            (delete-region lb ub)
+            (goto-char lb)
+            (save-excursion
+              (let* ((text (format "%S\n" tweet))
+                     (length (length text))
+                     (ub (+ lb length)))
+                (insert text)
+                (set-text-properties lb ub 'nil buffer)
+                (twitching-render-region b (point-max) buffer)))))
+      'nil)))
+
+(defun get-twitching-tweet-bounds (point buffer)
+  "Return a list (of B LB UB) where start and end are the
+starting and ending points of POINT in BUFFER.  Return nil if
+POINT does not exist in BUFFER.
+
+    +------------+ +------------+ +----------+
+    | prev tweet | | this tweet | |next tweet|
+    +------------+ +------------+ +----------+
+    a            b lb    p     ub e          f
+
+a, b, lb, p, ub, e and f are all points in BUFFER representing
+the bounds of the tweets `prev tweet', 'this tweet' and `next
+tweet'."
+  (let* ((status (get-text-property point 'tweet buffer))
+         (p point))
     ;; since we're using text properties that, unlike overlays, do not
     ;; store their bounds, we need to do extra jugglery to find bounds
     ;; of a tweet.
@@ -410,8 +441,7 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
     ;; We calculate c = (n-s-p-c (p-s-p-c p 'tweet) 'tweet) and
     ;; calculate d = (n-s-p-c p 'tweet), while taking boundary
     ;; conditions into consideration.
-    (if (and (twitching-status-p status)
-             (equal id (twitching-status-id status)))
+    (if (twitching-status-p status)
         (let* ((point-max (point-max))
                (b (previous-single-property-change p 'tweet buffer))
                (prev-tweet (get-text-property b 'tweet buffer))
@@ -427,17 +457,8 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
                      (point-min)))
                (ub (next-single-property-change p 'tweet buffer
                                                 point-max)))
-          (with-twitching-buffer buffer
-            (delete-region lb ub)
-            (goto-char lb)
-            (save-excursion
-              (let* ((text (format "%S\n" tweet))
-                     (length (length text))
-                     (ub (+ lb length)))
-                (insert text)
-                (set-text-properties lb ub 'nil buffer)
-                (twitching-render-region b (point-max) buffer)))))
-      nil)))
+          (list b lb ub))
+      'nil)))
 
 
 ;;; Define `twitching-mode'
@@ -770,6 +791,7 @@ is GET."
                       (if favoritedp "/destroy/" "/create/")
                       id
                       ".json"))
+         (json-false 'nil)
          (response (twitching-api-oauth-get-http-response url nil "POST")))
     (when (twitching-api-request-success-p response)
       (let* ((body (twitching-api-extract-response-body response))
