@@ -286,7 +286,8 @@ takes one argument and returns the object representation."
 
 (defun twitching-render-region (start end buffer)
   "Renders the region in START and END in BUFFER.  Reads
-`twitching-status'es in the region and renders each of them."
+`twitching-status'es in the region and renders them if they do
+not need filtering."
   (when (> start end) (rotatef start end))
   (with-twitching-buffer buffer
     (let ((string (buffer-substring-no-properties start end))
@@ -294,11 +295,12 @@ takes one argument and returns the object representation."
           (read-start 0))
       (while (ignore-errors (setq result (read-from-string string read-start)))
         (let* ((status (car result))
+               (filterp (twitching-filter-filter-tweet-p status))
                (read-end (cdr result))
                (line1 (twitching-decorate-title-text status))
                (line2 (twitching-decorate-status-text status))
                (newline *twitching-newline*)
-               (display (concat line1 newline line2 newline))
+               (display (if filterp "" (concat line1 newline line2 newline)))
                (buf-start (+ start read-start))
                (buf-end (+ start read-end)))
           (set-text-properties buf-start buf-end nil buffer)
@@ -507,6 +509,27 @@ tweet'."
        (toggle-read-only +1))))
 
 
+;;; Filters
+(defstruct (twitching-filter (:type vector) :named)
+  documentation
+  action
+  args)
+
+(defvar *twitching-filters* (list)
+  "List of `twitching-filter'.")
+
+(defun twitching-filter-filter-tweet-p (tweet)
+  "Return t if TWEET must be filtered, nil otherwise."
+  (loop for filter in *twitching-filters*
+        with action = nil
+        with args = nil
+        while tweet
+        do (setq action (twitching-filter-action filter)
+                 args (twitching-filter-args filter))
+        if (apply action tweet args) return 't
+        finally return 'nil))
+
+
 ;;; Mode interactive functions
 (defun twitching-next-tweet (n)
   "Move down N tweets."
@@ -587,10 +610,7 @@ at 1."
 (defun twitching-open-entity (point entity-elem-fn key n url-prefix)
   (let ((status (get-text-property point 'tweet)))
     (if status
-        (let* ((entities (twitching-status-entities status))
-               (elems (funcall entity-elem-fn entities))
-               (elem (nth (1- n) elems))
-               (elem (cdr (assoc key elem)))
+        (let* ((elem (twitching-get-nth-entity status entity-elem-fn key n))
                (url (concat url-prefix elem)))
           (when elem
             (funcall browse-url-browser-function url)))
@@ -619,16 +639,22 @@ the current tweet."
           (if (= n 0)
               (setq screen-name (twitching-user-screen-name
                                  (twitching-status-user status)))
-            (let* ((entities (twitching-status-entities status))
-                   (mentions (twitching-entity-mentions entities))
-                   (mention (nth (1- n) mentions))
-                   (username (cdr (assoc 'screen_name mention))))
-              (setq screen-name username)))
+            (setq screen-name (twitching-get-nth-entity
+                               status
+                               #'twitching-entity-mentions
+                               'screen_name
+                               n)))
           (if screen-name
               (twitching-un?follow-user screen-name unfollowp)
             (message
              (format "Could not find mention #%d in current tweet." n))))
       (message "No tweet at point."))))
+
+(defun twitching-get-nth-entity (tweet entity-elem-fn key n)
+  (let* ((entities (twitching-status-entities tweet))
+         (elems (funcall entity-elem-fn entities))
+         (elem (nth (1- n) elems)))
+    (cdr (assoc key elem))))
 
 (defun twitching-follow-user (screen-name)
   "Get user input for a Twitter SCREEN-NAME and start following
@@ -651,6 +677,34 @@ them."
           (404 (message (format "%s does not exist" screen-name)))
           (403 (message (format "Already %sing %s" action screen-name)))
           (t (message (format "Received error code %d" status))))))))
+
+(defun twitching-filter-hashtag (n point)
+  "Creates a filter that filters the N-th hashtag in the tweet at
+POINT."
+  (interactive "p\nd")
+  (let ((tweet (get-text-property point 'tweet (current-buffer))))
+    (if tweet
+        (let* ((elem-fn #'twitching-entity-hashtags)
+               (key 'text)
+               (hashtag (twitching-get-nth-entity tweet elem-fn key n))
+               (hshtag (concat "#" (regexp-quote (downcase hashtag)))))
+          (let* ((fn (lambda (tweet hashtag)
+                       (let ((case-fold-search t)
+                             (text (twitching-status-text tweet)))
+                         (string-match-p hashtag text))))
+                 (doc (concat "Filter #" hashtag))
+                 (filter (make-twitching-filter :documentation doc
+                                                :action fn
+                                                :args (list hshtag))))
+            (if hashtag
+                (when (y-or-n-p (concat "Create new filter on #" hashtag "? "))
+                  (setq *twitching-filters*
+                        (nconc *twitching-filters* (list filter)))
+                  (twitching-render-region (point-min)
+                                           (point-max)
+                                           (current-buffer)))
+              (error "No hashtag in tweet."))))
+      (error "No tweet at point."))))
 
 
 ;;; Twitter API interactions
