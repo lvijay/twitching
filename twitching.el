@@ -290,37 +290,28 @@ takes one argument and returns the object representation."
 `twitching-status'es in the region and renders them if they do
 not need filtering."
   (when (> start end) (rotatef start end))
-  (save-excursion
-    (with-twitching-buffer buffer
-      (let* ((s (buffer-substring-no-properties start end))
-             result
-            (read-start 0))
-        (delete-region start end)
-        (with-temp-buffer
-          (while (ignore-errors (setq result (read-from-string s read-start)))
-            (let ((status (car result))
-                  (read-end (cdr result)))
-              (when (and (twitching-status-p status)
-                         (not (twitching-filter-filter-tweet-p status)))
-                (insert (format "%S\n" status)))
-              (setq read-start read-end)))
-          (setq s (buffer-string)))
-        (goto-char start)
-        (insert s)
-        (setq read-start 0)
-        (while (ignore-errors (setq result (read-from-string s read-start)))
-          (let* ((status (car result))
-                 (read-end (cdr result))
-                 (line1 (twitching-decorate-title-text status))
-                 (line2 (twitching-decorate-status-text status))
-                 (newline *twitching-newline*)
-                 (display (concat line1 newline line2 newline))
-                 (buf-start (+ start read-start))
-                 (buf-end (+ start read-end)))
-            (set-text-properties buf-start buf-end nil)
-            (put-text-property buf-start buf-end 'display display)
-            (put-text-property buf-start buf-end 'tweet status)
-            (setq read-start read-end)))))))
+  (with-twitching-buffer buffer
+    (let* ((s (buffer-substring-no-properties start end))
+           (s (twitching-filter-text s))
+           result
+           (read-start 0))
+      (delete-region start end)
+      (goto-char start)
+      (insert s)
+      (setq read-start 0)
+      (while (ignore-errors (setq result (read-from-string s read-start)))
+        (let* ((status (car result))
+               (read-end (cdr result))
+               (line1 (twitching-decorate-title-text status))
+               (line2 (twitching-decorate-status-text status))
+               (newline *twitching-newline*)
+               (display (concat line1 newline line2 newline))
+               (buf-start (+ start read-start))
+               (buf-end (+ start read-end)))
+          (set-text-properties buf-start buf-end nil)
+          (put-text-property buf-start buf-end 'display display)
+          (put-text-property buf-start buf-end 'tweet status)
+          (setq read-start read-end))))))
 
 (defun twitching-decorate-title-text (status)
   (let* ((created-at (twitching-status-created-at status))
@@ -539,16 +530,31 @@ tweet'."
 (defun twitching-filter-filter-tweet-p (tweet)
   "Return t if TWEET must be filtered, nil otherwise."
   (loop for filter in *twitching-filters*
-        with action = nil
-        with args = nil
         while tweet
-        do (setq action (twitching-filter-action filter)
-                 args (twitching-filter-args filter))
-        if (apply action tweet args) return 't
+        if (invoke-twitching-filter filter tweet) return 't
         finally return 'nil))
+
+(defun invoke-twitching-filter (filter tweet)
+  "Returns t if FILTER filters TWEET, nil otherwise."
+  (apply (twitching-filter-action filter) tweet (twitching-filter-args filter)))
 
 (defun twitching-filter-escape (word)
   (regexp-quote (downcase word)))
+
+(defun twitching-filter-text (text)
+  "Parse TEXT, read twitching-statuses, filter out tweets and
+return the remaining text."
+  (let ((read-start 0)
+        result)
+    (with-temp-buffer
+      (while (ignore-errors (setq result (read-from-string text read-start)))
+        (let ((status (car result))
+              (read-end (cdr result)))
+          (when (and (twitching-status-p status)
+                     (not (twitching-filter-filter-tweet-p status)))
+            (insert (format "%S\n" status)))
+          (setq read-start read-end)))
+      (buffer-string))))
 
 
 ;;; Mode interactive functions
@@ -724,7 +730,8 @@ POINT."
                       (nconc *twitching-filters* (list filter)))
                 (twitching-render-region (point-min)
                                          (point-max)
-                                         (current-buffer)))
+                                         (current-buffer))
+                (goto-char (min point (point-max))))
             (error "No hashtag in tweet.")))
       (error "No tweet at point."))))
 
@@ -732,6 +739,7 @@ POINT."
   (interactive "sEnter filter word: ")
   (let* ((werd word)
          (word (twitching-filter-escape word))
+         (point (point))
          (fn (lambda (tweet word)
                (let ((case-fold-search t)
                      (text (twitching-status-text tweet)))
@@ -745,7 +753,8 @@ POINT."
             (nconc *twitching-filters* (list filter)))
       (twitching-render-region (point-min)
                                (point-max)
-                               (current-buffer)))))
+                               (current-buffer))
+      (goto-char (min point (point-max))))))
 
 
 ;;; Twitter API interactions
