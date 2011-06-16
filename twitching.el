@@ -121,9 +121,12 @@ timeline.")
         (twitching-render-region starting-point ending-point buffer)))))
 
 (defun get-twitching-buffer ()
+  "Return the buffer used to show the user's Twitter home
+timeline."
   (get-buffer-create "*Twitching*"))
 
 (defun get-twitching-favorites-buffer ()
+  "Return the buffer used to show the user's Twitter favorites."
   (get-buffer-create "*Favorite Tweets*"))
 
 
