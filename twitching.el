@@ -830,7 +830,7 @@ METHOD determines the http method GET or POST.  Default
 is GET."
   (let ((response (twitching-api-oauth-get-http-response
                    url params-alist (or method "GET"))))
-    (when (twitching-api-request-success-p response)
+    (when (and (stringp response) (twitching-api-request-success-p response))
       (let ((response-body (twitching-api-extract-response-body response))
             (json-false 'nil)
             (json-array-type 'list))
