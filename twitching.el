@@ -256,12 +256,12 @@ takes one argument and returns the object representation."
                                                (:foreground "black"))))
 
 (defvar *twitching-hashtags-category*
-  (put '*twitching-hashtags-category* 'face '((:background "ivory3")
+  (put '*twitching-hashtags-category* 'face '((:background "white")
                                              (:foreground "firebrick")
                                              (:slant italic))))
 
 (defvar *twitching-mentions-category*
-  (put '*twitching-mentions-category* 'face '((:background "thistle2")
+  (put '*twitching-mentions-category* 'face '((:background "white")
                                               (:foreground "DarkGreen")
                                               (:weight bold))))
 
