@@ -427,7 +427,7 @@ POINT does not exist in BUFFER.
 a, b, lb, p, ub, e and f are all points in BUFFER representing
 the bounds of the tweets `prev tweet', 'this tweet' and `next
 tweet'."
-  (let* ((status (get-text-property point 'tweet buffer))
+  (let* ((tweet (get-text-property point 'tweet buffer))
          (p point))
     ;; since we're using text properties that, unlike overlays, do not
     ;; store their bounds, we need to do extra jugglery to find bounds
@@ -448,7 +448,7 @@ tweet'."
     ;; We calculate c = (n-s-p-c (p-s-p-c p 'tweet) 'tweet) and
     ;; calculate d = (n-s-p-c p 'tweet), while taking boundary
     ;; conditions into consideration.
-    (if (twitching-status-p status)
+    (if (twitching-status-p tweet)
         (let* ((point-max (point-max))
                (b (previous-single-property-change p 'tweet buffer))
                (prev-tweet (get-text-property b 'tweet buffer))
