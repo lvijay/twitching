@@ -506,6 +506,15 @@ tweet'."
       (define-key filter-map (kbd "#") 'twitching-filter-hashtag)
       (define-key filter-map (kbd "w") 'twitching-filter-word)
       (define-key keymap (kbd "f") filter-map))
+    (let ((copy-map (make-sparse-keymap)))
+      (define-key copy-map (kbd "m") 'twitching-copy-tweet-mention)
+      (define-key copy-map (kbd "a") 'twitching-copy-tweet-author)
+      (define-key copy-map (kbd "d") 'twitching-copy-tweet-date)
+      (define-key copy-map (kbd "s") 'twitching-copy-tweet-status-id)
+      (define-key copy-map (kbd "h") 'twitching-copy-tweet-hashtag)
+      (define-key copy-map (kbd "u") 'twitching-copy-tweet-url)
+      (define-key copy-map (kbd "t") 'twitching-copy-tweet-text)
+      (define-key keymap (kbd "c") copy-map))
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
@@ -758,6 +767,90 @@ POINT."
                                (point-max)
                                (current-buffer))
       (goto-char (min point (point-max))))))
+
+;;; copy methods
+(defun twitching-copy-tweet-text (point)
+  "Copies the text of tweet under POINT and places it in the
+`kill-ring'."
+  (interactive "d")
+  (let ((tweet (get-text-property point 'tweet (current-buffer))))
+    (if tweet
+        (kill-new (twitching-status-text tweet))
+      (error "No tweet at point."))))
+
+(defun twitching-copy-tweet-url (n point)
+  "Copies the N-th url in the tweet under POINT."
+  (interactive "p\nd")
+  (let ((tweet (get-text-property point 'tweet (current-buffer))))
+    (when (not tweet)
+      (error "No tweet at POINT %s" point))
+    (let* ((elem-fn #'twitching-entity-urls)
+           (key 'url)
+           (url (twitching-get-nth-entity tweet elem-fn key n)))
+      (if url
+          (kill-new url)
+        (error "URL #%d not found in tweet" n)))))
+
+(defun twitching-copy-tweet-mention (n point)
+  "Copies the N-th mention in the tweet under POINT."
+  (interactive "p\nd")
+  (let ((tweet (get-text-property point 'tweet (current-buffer))))
+    (when (not tweet)
+      (error "No tweet at POINT %s" point))
+    (let* ((elem-fn #'twitching-entity-mentions)
+           (key 'screen_name)
+           (mention (twitching-get-nth-entity tweet elem-fn key n)))
+      (if mention
+          (kill-new (concat "@" mention))
+        (error "Mention #%d not found in tweet" n)))))
+
+(defun twitching-copy-tweet-hashtag (n point)
+  "Copies the N-th hashtag in the tweet under POINT."
+  (interactive "p\nd")
+  (let ((tweet (get-text-property point 'tweet (current-buffer))))
+    (when (not tweet)
+      (error "No tweet at POINT %s" point))
+    (let* ((elem-fn #'twitching-entity-hashtags)
+           (key 'text)
+           (hashtag (twitching-get-nth-entity tweet elem-fn key n)))
+      (if hashtag
+          (kill-new (concat "#" hashtag))
+        (error "Mention #%d not found in tweet" n)))))
+
+(defun twitching-copy-tweet-author (point full-name-p)
+  "Copies the screen-name of the tweet under POINT.  With a
+prefix argument, i.e., when FULL-NAME-P is non-nil, copies the
+tweet's user-name."
+  (interactive "d\nP")
+  (let ((tweet (get-text-property point 'tweet (current-buffer))))
+    (if tweet
+        (let ((user (twitching-status-user tweet)))
+          (if full-name-p
+              (kill-new (twitching-user-name user))
+            (kill-new (twitching-user-screen-name user))))
+      (error "No tweet at point."))))
+
+(defun twitching-copy-tweet-date (point local-time-p)
+  "Copies the date of the tweet under POINT.  With a prefix
+argument, i.e., when LOCAL-TIME-P is non-nill, copies the tweet's
+time as a local time."
+  (interactive "d\nP")
+  (let ((tweet (get-text-property point 'tweet (current-buffer))))
+    (if tweet
+        (let ((time (twitching-status-created-at tweet)))
+          (if local-time-p
+              (kill-new (format-time-string "%a %b %d %H:%M:%S %z %Y"
+                                            (date-to-time time)))
+            (kill-new time)))
+      (error "No tweet at point."))))
+
+(defun twitching-copy-tweet-status-id (point)
+  "Copies the status-id of the tweet under POINT."
+  (interactive "d")
+  (let ((tweet (get-text-property point 'tweet (current-buffer))))
+    (if tweet
+        (kill-new (twitching-status-id tweet))
+      (error "No tweet at point."))))
 
 
 ;;; Twitter API interactions
