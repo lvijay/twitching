@@ -71,10 +71,22 @@ timeline.")
       (setq *twitching-timer*
             (run-with-timer 0
                             *twitching-timer-interval*
-                            #'twitching-home-timeline-get)))))
+                            #'twitching-home-timeline-get
+                            nil)))))
 
 ;;;###autoload
-(defun twitching-home-timeline-get (n)
+(defun twitching-stop ()
+  "Stop the timer that fetches tweets."
+  (interactive)
+  (if *twitching-timer*
+    (progn
+      (cancel-timer *twitching-timer*)
+      (setq *twitching-timer* nil)
+      (message "Stopped twitching timer."))
+    (message "twitching timer not running.")))
+
+;;;###autoload
+(defun twitching-home-timeline-get (&optional n)
   "Fetch home timeline."
   (interactive "P")
   (let ((buffer (get-twitching-buffer))
@@ -107,17 +119,6 @@ timeline.")
     (with-twitching-buffer buffer
       (save-excursion
         (twitching-render-region starting-point ending-point buffer)))))
-
-;;;###autoload
-(defun twitching-stop ()
-  "Stop the timer that fetches tweets."
-  (interactive)
-  (if *twitching-timer*
-    (progn
-      (cancel-timer *twitching-timer*)
-      (setq *twitching-timer* nil)
-      (message "Stopped twitching timer."))
-    (message "twitching timer not running.")))
 
 (defun get-twitching-buffer ()
   (get-buffer-create "*Twitching*"))
@@ -488,12 +489,16 @@ tweet'."
     (define-key keymap (kbd "<backspace>") 'scroll-down)
     (define-key keymap (kbd "#") 'twitching-open-hashtag)
     (define-key keymap (kbd "@") 'twitching-open-mention)
-    (let ((follow-map (make-sparse-keymap)))
-      (define-key follow-map (kbd "f") 'twitching-follow-user-in-tweet)
-      (define-key follow-map (kbd "u") 'twitching-unfollow-user-in-tweet)
-      (define-key follow-map (kbd "F") 'twitching-follow-user)
-      (define-key follow-map (kbd "U") 'twitching-unfollow-user)
-      (define-key keymap (kbd "f") follow-map))
+    (let ((action-map (make-sparse-keymap)))
+      (define-key action-map (kbd "f") 'twitching-follow-user-in-tweet)
+      (define-key action-map (kbd "u") 'twitching-unfollow-user-in-tweet)
+      (define-key action-map (kbd "F") 'twitching-follow-user)
+      (define-key action-map (kbd "U") 'twitching-unfollow-user)
+      (define-key keymap (kbd "a") action-map))
+    (let ((filter-map (make-sparse-keymap)))
+      (define-key filter-map (kbd "#") 'twitching-filter-hashtag)
+      (define-key filter-map (kbd "w") 'twitching-filter-word)
+      (define-key keymap (kbd "f") filter-map))
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
@@ -528,6 +533,9 @@ tweet'."
                  args (twitching-filter-args filter))
         if (apply action tweet args) return 't
         finally return 'nil))
+
+(defun twitching-filter-escape (word)
+  (regexp-quote (downcase word)))
 
 
 ;;; Mode interactive functions
@@ -686,25 +694,45 @@ POINT."
     (if tweet
         (let* ((elem-fn #'twitching-entity-hashtags)
                (key 'text)
-               (hashtag (twitching-get-nth-entity tweet elem-fn key n))
-               (hshtag (concat "#" (regexp-quote (downcase hashtag)))))
-          (let* ((fn (lambda (tweet hashtag)
-                       (let ((case-fold-search t)
-                             (text (twitching-status-text tweet)))
-                         (string-match-p hashtag text))))
-                 (doc (concat "Filter #" hashtag))
-                 (filter (make-twitching-filter :documentation doc
-                                                :action fn
-                                                :args (list hshtag))))
-            (if hashtag
-                (when (y-or-n-p (concat "Create new filter on #" hashtag "? "))
-                  (setq *twitching-filters*
-                        (nconc *twitching-filters* (list filter)))
-                  (twitching-render-region (point-min)
-                                           (point-max)
-                                           (current-buffer)))
-              (error "No hashtag in tweet."))))
+               (ht-raw (twitching-get-nth-entity tweet elem-fn key n))
+               (ht-raw (concat "#" ht-raw))
+               (hashtag (twitching-filter-escape ht-raw))
+               (fn (lambda (tweet hashtag)
+                     (let ((case-fold-search t)
+                           (text (twitching-status-text tweet)))
+                       (string-match-p hashtag text))))
+               (doc (concat "Filter " ht-raw))
+               (filter (make-twitching-filter :documentation doc
+                                              :action fn
+                                              :args (list hashtag))))
+          (if hashtag
+              (when (y-or-n-p (concat "Create new filter on " ht-raw "? "))
+                (setq *twitching-filters*
+                      (nconc *twitching-filters* (list filter)))
+                (twitching-render-region (point-min)
+                                         (point-max)
+                                         (current-buffer)))
+            (error "No hashtag in tweet.")))
       (error "No tweet at point."))))
+
+(defun twitching-filter-word (word)
+  (interactive "sEnter filter word: ")
+  (let* ((werd word)
+         (word (twitching-filter-escape word))
+         (fn (lambda (tweet word)
+               (let ((case-fold-search t)
+                     (text (twitching-status-text tweet)))
+                 (string-match-p word text))))
+         (doc (concat "Filter " word))
+         (filter (make-twitching-filter :documentation doc
+                                        :action fn
+                                        :args (list word))))
+    (when (y-or-n-p (concat "Create new filter on " werd "? "))
+      (setq *twitching-filters*
+            (nconc *twitching-filters* (list filter)))
+      (twitching-render-region (point-min)
+                               (point-max)
+                               (current-buffer)))))
 
 
 ;;; Twitter API interactions
