@@ -130,7 +130,22 @@ timeline."
   (get-buffer-create "*Favorite Tweets*"))
 
 
-;;; struct definitions
+(defmacro* with-tweet-under-point (tweet-var (point &optional buffer) &rest body)
+  "Macro that gets the tweet under POINT in BUFFER, binds it to
+tweet-var for execution in BODY.  Raises (error \"No tweet under
+point %d\" point) if there is no tweet under POINT.  BUFFER is
+optional, the current buffer will be assumed if it is not
+provided."
+  (declare (indent 2))
+  (let ((pt (gensym "POINT"))
+        (buf (gensym "BUFFER")))
+    `(let ((,pt ,point)
+           (,buf ,(or buffer '(current-buffer))))
+       (let ((,tweet-var (get-text-property ,pt 'tweet ,buf)))
+         (if ,tweet-var
+             (progn .,body)
+           (error "No tweet under point %d" ,pt))))))
+
 (defmacro twitching-defstruct (struct-name &rest fields)
   "Macro that defines structures representing twitter responses.
 STRUCT-NAME is the name of the represented object.
@@ -170,7 +185,9 @@ takes one argument and returns the object representation."
                               `(,struct-field (preprop ,form)))))
                       fields)))))))
 
-;;; Defines a twitter-user
+
+;;; struct definitions
+;; Defines a twitter-user
 (twitching-defstruct twitching-user
   (created_at created-at)
   (geo_enabled geo-enabled-p)
@@ -197,13 +214,13 @@ takes one argument and returns the object representation."
   (protected protectedp)
   (followers_count followers-count))
 
-;;; Defines a twitter-entity
+;; Defines a twitter-entity
 (twitching-defstruct twitching-entity
   (hashtags hashtags)
   (user_mentions mentions)
   (urls urls))
 
-;;; Defines a twitter-status
+;; Defines a twitter-status
 (twitching-defstruct twitching-status
   (created_at created-at)
   (retweeted retweetedp)
@@ -402,6 +419,7 @@ searched for in BUFFER.  If POINT is not nil and the
 twitching-status under POINT does not equal TWEET, returns nil.
 If BUFFER is not provided, `(current-buffer) is assumed. "
   (when (not point) (setq point (find-twitching-status tweet buffer)))
+  (when (not buffer) (setq buffer (current-buffer)))
   (let* ((status (get-text-property point 'tweet buffer))
          (id (twitching-status-id tweet))
          (p point))
@@ -599,12 +617,9 @@ return the remaining text."
 (defun twitching-favorite-tweet (point)
   "Favorite or unfavorite the tweet at POINT."
   (interactive "d")
-  (let* ((tweet (get-text-property point 'tweet))
-         (buffer (current-buffer))
-         (tweet (twitching-api-star-tweet tweet)))
-    (if tweet
-        (twitching-rerender-tweet tweet point buffer)
-      (message "No tweet at point."))))
+  (with-tweet-under-point tweet (point)
+    (twitching-api-star-tweet tweet)
+    (twitching-rerender-tweet tweet point)))
 
 (defun twitching-create-filter ()
   "Create a twitter filter."
@@ -650,13 +665,11 @@ at 1."
     (message "No hashtag in tweet.")))
 
 (defun twitching-open-entity (point entity-elem-fn key n url-prefix)
-  (let ((status (get-text-property point 'tweet)))
-    (if status
-        (let* ((elem (twitching-get-nth-entity status entity-elem-fn key n))
-               (url (concat url-prefix elem)))
-          (when elem
-            (funcall browse-url-browser-function url)))
-      (message "No tweet at point."))))
+  (with-tweet-under-point status (point)
+    (let* ((elem (twitching-get-nth-entity status entity-elem-fn key n))
+           (url (concat url-prefix elem)))
+      (when elem
+        (funcall browse-url-browser-function url)))))
 
 (defun twitching-follow-user-in-tweet (n point)
   "Follows the Nth user in the tweet under point.  Counting
@@ -724,31 +737,29 @@ them."
   "Creates a filter that filters the N-th hashtag in the tweet at
 POINT."
   (interactive "p\nd")
-  (let ((tweet (get-text-property point 'tweet (current-buffer))))
-    (if tweet
-        (let* ((elem-fn #'twitching-entity-hashtags)
-               (key 'text)
-               (ht-raw (twitching-get-nth-entity tweet elem-fn key n))
-               (ht-raw (concat "#" ht-raw))
-               (hashtag (twitching-filter-escape ht-raw))
-               (fn (lambda (tweet hashtag)
-                     (let ((case-fold-search t)
-                           (text (twitching-status-text tweet)))
-                       (string-match-p hashtag text))))
-               (doc (concat "Filter " ht-raw))
-               (filter (make-twitching-filter :documentation doc
-                                              :action fn
-                                              :args (list hashtag))))
-          (if hashtag
-              (when (y-or-n-p (concat "Create new filter on " ht-raw "? "))
-                (setq *twitching-filters*
-                      (nconc *twitching-filters* (list filter)))
-                (twitching-render-region (point-min)
-                                         (point-max)
-                                         (current-buffer))
-                (goto-char (min point (point-max))))
-            (error "No hashtag in tweet.")))
-      (error "No tweet at point."))))
+  (with-tweet-under-point tweet (point)
+    (let* ((elem-fn #'twitching-entity-hashtags)
+           (key 'text)
+           (ht-raw (twitching-get-nth-entity tweet elem-fn key n))
+           (ht-raw (concat "#" ht-raw))
+           (hashtag (twitching-filter-escape ht-raw))
+           (fn (lambda (tweet hashtag)
+                 (let ((case-fold-search t)
+                       (text (twitching-status-text tweet)))
+                   (string-match-p hashtag text))))
+           (doc (concat "Filter " ht-raw))
+           (filter (make-twitching-filter :documentation doc
+                                          :action fn
+                                          :args (list hashtag))))
+      (if hashtag
+          (when (y-or-n-p (concat "Create new filter on " ht-raw "? "))
+            (setq *twitching-filters*
+                  (nconc *twitching-filters* (list filter)))
+            (twitching-render-region (point-min)
+                                     (point-max)
+                                     (current-buffer))
+            (goto-char (min point (point-max))))
+        (error "No hashtag in tweet.")))))
 
 (defun twitching-filter-word (word)
   (interactive "sEnter filter word: ")
@@ -776,17 +787,13 @@ POINT."
   "Copies the text of tweet under POINT and places it in the
 `kill-ring'."
   (interactive "d")
-  (let ((tweet (get-text-property point 'tweet (current-buffer))))
-    (if tweet
-        (kill-new (twitching-status-text tweet))
-      (error "No tweet at point."))))
+  (with-tweet-under-point tweet (point)
+    (kill-new (twitching-status-text tweet))))
 
 (defun twitching-copy-tweet-url (n point)
   "Copies the N-th url in the tweet under POINT."
   (interactive "p\nd")
-  (let ((tweet (get-text-property point 'tweet (current-buffer))))
-    (when (not tweet)
-      (error "No tweet at POINT %s" point))
+  (with-tweet-under-point tweet (point)
     (let* ((elem-fn #'twitching-entity-urls)
            (key 'url)
            (url (twitching-get-nth-entity tweet elem-fn key n)))
@@ -797,9 +804,7 @@ POINT."
 (defun twitching-copy-tweet-mention (n point)
   "Copies the N-th mention in the tweet under POINT."
   (interactive "p\nd")
-  (let ((tweet (get-text-property point 'tweet (current-buffer))))
-    (when (not tweet)
-      (error "No tweet at POINT %s" point))
+  (with-tweet-under-point tweet (point)
     (let* ((elem-fn #'twitching-entity-mentions)
            (key 'screen_name)
            (mention (twitching-get-nth-entity tweet elem-fn key n)))
@@ -810,9 +815,7 @@ POINT."
 (defun twitching-copy-tweet-hashtag (n point)
   "Copies the N-th hashtag in the tweet under POINT."
   (interactive "p\nd")
-  (let ((tweet (get-text-property point 'tweet (current-buffer))))
-    (when (not tweet)
-      (error "No tweet at POINT %s" point))
+  (with-tweet-under-point tweet (point)
     (let* ((elem-fn #'twitching-entity-hashtags)
            (key 'text)
            (hashtag (twitching-get-nth-entity tweet elem-fn key n)))
@@ -825,35 +828,29 @@ POINT."
 prefix argument, i.e., when FULL-NAME-P is non-nil, copies the
 tweet's user-name."
   (interactive "d\nP")
-  (let ((tweet (get-text-property point 'tweet (current-buffer))))
-    (if tweet
-        (let ((user (twitching-status-user tweet)))
-          (if full-name-p
-              (kill-new (twitching-user-name user))
-            (kill-new (twitching-user-screen-name user))))
-      (error "No tweet at point."))))
+  (with-tweet-under-point tweet (point)
+    (let ((user (twitching-status-user tweet)))
+      (if full-name-p
+          (kill-new (twitching-user-name user))
+        (kill-new (twitching-user-screen-name user))))))
 
 (defun twitching-copy-tweet-date (point local-time-p)
   "Copies the date of the tweet under POINT.  With a prefix
 argument, i.e., when LOCAL-TIME-P is non-nill, copies the tweet's
 time as a local time."
   (interactive "d\nP")
-  (let ((tweet (get-text-property point 'tweet (current-buffer))))
-    (if tweet
-        (let ((time (twitching-status-created-at tweet)))
-          (if local-time-p
-              (kill-new (format-time-string "%a %b %d %H:%M:%S %z %Y"
-                                            (date-to-time time)))
-            (kill-new time)))
-      (error "No tweet at point."))))
+  (with-tweet-under-point tweet (point)
+    (let ((time (twitching-status-created-at tweet)))
+      (if local-time-p
+          (kill-new (format-time-string "%a %b %d %H:%M:%S %z %Y"
+                                        (date-to-time time)))
+        (kill-new time)))))
 
 (defun twitching-copy-tweet-status-id (point)
   "Copies the status-id of the tweet under POINT."
   (interactive "d")
-  (let ((tweet (get-text-property point 'tweet (current-buffer))))
-    (if tweet
-        (kill-new (twitching-status-id tweet))
-      (error "No tweet at point."))))
+  (with-tweet-under-point tweet (point)
+    (kill-new (twitching-status-id tweet))))
 
 
 ;;; Twitter API interactions
