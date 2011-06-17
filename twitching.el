@@ -282,9 +282,12 @@ takes one argument and returns the object representation."
   (propertize "\x27F3\ " 'face '((:background "GreenYellow")))
   "String used to represent retweeted tweets.")
 
-(defvar *twitching-newline* (propertize "\n"
-                                        'face '((:background "white")
-                                                (:foreground "white"))))
+(defvar *twitching-newline-category*
+  (put '*twitching-newline-category* 'face '((:background "white")
+                                             (:foreground "white"))))
+
+(defvar *twitching-newline*
+  (propertize "\n" 'category '*twitching-newline-category*))
 
 (defvar *twitching-fill-column* 70 "Set this to manipulate `fill-column'.")
 
