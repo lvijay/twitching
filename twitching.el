@@ -428,14 +428,14 @@ If BUFFER is not provided, `(current-buffer) is assumed. "
         (destructuring-bind (b lb ub) (get-twitching-tweet-bounds p buffer)
           (with-twitching-buffer buffer
             (delete-region lb ub)
-            (goto-char lb)
             (save-excursion
               (let* ((text (format "%S\n" tweet))
                      (length (length text))
                      (ub (+ lb length)))
                 (insert text)
                 (set-text-properties lb ub 'nil buffer)
-                (twitching-render-region b (point-max) buffer)))))
+                (twitching-render-region b (point-max) buffer)))
+            (goto-char lb)))
       'nil)))
 
 (defun get-twitching-tweet-bounds (point buffer)
@@ -1127,4 +1127,4 @@ equivalent string."
 
 (provide 'twitching)
 
-;;; twitching.el ends here
+;;; twitching.el ends he
