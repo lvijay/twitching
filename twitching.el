@@ -1106,9 +1106,9 @@ GET."
   "Return the http status code in RESPONSE.  Return nil if
 RESPONSE is not a valid HTTP/1.1 response.  The return value is a
 number."
-  (if (string-match "^HTTP/1[.]1 \\([0-9]*\\)" response)
+  (if (string-match "^HTTP/1[.]1 \\([0-9]*\\)" response 0)
       (string-to-number (match-string 1 response))
-    'nil))
+    (error "Could not find HTTP status code in response.")))
 
 (defun url-insert-entities-in-string2 (s)
   "Same as url-insert-entities-in-string but additionally
