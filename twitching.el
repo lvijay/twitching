@@ -870,9 +870,6 @@ time as a local time."
 
 (defvar *twitching-api-since-id* nil "Last status-id received from twitter.")
 
-(defvar *twitching-api-favorites-since-id* nil
-  "Last status-id received from twitter.")
-
 (defvar *twitching-api-count* nil "Number of tweets to fetch.")
 
 (defvar *twitching-api-page-number* nil "Page number to fetch.")
@@ -897,10 +894,8 @@ time as a local time."
   (twitching-api-check-keys)
   (let* ((url "http://api.twitter.com/1/favorites.json")
          (*twitching-api-count* 'nil)       ; unused for favorites
-         (*twitching-api-since-id* *twitching-api-favorites-since-id*)
+         (*twitching-api-since-id* 'nil)    ; unused for favorites
          (result (twitching-api-keep-getting-statuses url t)))
-    (when result
-      (setq *twitching-api-favorites-since-id* (cdr result)))
     (car result)))
 
 (defun twitching-api-keep-getting-statuses (url &optional fullyp)
