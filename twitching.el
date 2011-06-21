@@ -916,7 +916,7 @@ response or nil if there was no response."
                  (params (twitching-api-get-params))
                  (stats (twitching-api-get-statuses url params "GET")))
             (if stats
-                (setq statuses (append stats statuses)
+                (setq statuses (append statuses stats)
                       page (1+ page))
               (setq continuep 'nil))
             (if (and (numberp *twitching-api-page-limit*)
