@@ -775,8 +775,7 @@ POINT."
                                         :action fn
                                         :args (list word))))
     (when (y-or-n-p (concat "Create new filter on " werd "? "))
-      (setq *twitching-filters*
-            (nconc *twitching-filters* (list filter)))
+      (push filter *twitching-filters*)
       (twitching-render-region (point-min)
                                (point-max)
                                (current-buffer))
