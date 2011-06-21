@@ -65,6 +65,7 @@ timeline.")
 (defun twitching-to-get-my-tweets ()
   "Start timer to fetch home timeline."
   (interactive)
+  (twitching-api-check-keys)
   (labels ((mintos (min) (print (* min 60))))
     (if *twitching-timer*
         (message "Timer already running.")
