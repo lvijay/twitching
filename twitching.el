@@ -96,12 +96,16 @@ timeline.")
   (message "retrieved tweets"))
 
 ;;;###autoload
-(defun twitching-show-favorites ()
-  "Show favorited tweets"
-  (interactive)
+(defun twitching-show-favorites (&optional show-buffer-p)
+  "Show favorited tweets.  With a prefix argument, switch to the
+buffer after retrieval."
+  (interactive "P")
   (let ((buffer (get-twitching-favorites-buffer))
         (tweets (twitching-api-get-favorites)))
-    (twitching-write-tweets tweets buffer))
+    (with-current-buffer buffer (kill-buffer))
+    (setq buffer (get-twitching-favorites-buffer))
+    (twitching-write-tweets tweets buffer)
+    (when show-buffer-p (switch-to-buffer buffer t)))
   (message "retrieved favorites"))
 
 (defun twitching-write-tweets (tweets buffer)
