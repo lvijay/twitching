@@ -653,10 +653,16 @@ With a prefix argument, opens the N th user in the tweet.
 Ignored if no users are mentioned in the tweet.  Counting starts
 at 1."
   (interactive "p")
-  (unless (twitching-open-entity (point) #'twitching-entity-mentions
-                                 'screen_name n
-                                 "https://twitter.com/#!/")
-    (message "No mention in tweet.")))
+  (if (zerop n)
+      (with-tweet-under-point tweet ((point))
+        (funcall browse-url-browser-function
+                 (concat "http://twitter.com/#!/"
+                         (twitching-user-screen-name
+                          (twitching-status-user tweet)))))
+    (unless (twitching-open-entity (point) #'twitching-entity-mentions
+                                   'screen_name n
+                                   "https://twitter.com/#!/")
+        (message "No mention in tweet."))))
 
 (defun twitching-open-hashtag (n)
   "Open the hashtag in the tweet under point.
