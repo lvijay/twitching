@@ -436,6 +436,7 @@ If BUFFER is not provided, `(current-buffer) is assumed."
             (save-excursion
               (let* ((text (format "%S\n" tweet))
                      (length (length text))
+                     (b (or b lb))      ; b is nil for the first tweet
                      (ub (+ lb length)))
                 (insert text)
                 (set-text-properties lb ub 'nil buffer)
@@ -479,7 +480,7 @@ tweet'."
     ;; conditions into consideration.
     (if (twitching-status-p tweet)
         (let* ((point-max (point-max))
-               (b (previous-single-property-change p 'tweet buffer))
+               (b (previous-single-property-change p 'tweet buffer (point-min)))
                (prev-tweet (get-text-property b 'tweet buffer))
                ;; Below check needed because if point, `p' was in the
                ;; middle of a tweet when this function is called, then
