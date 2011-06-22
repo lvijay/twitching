@@ -422,7 +422,7 @@ Assumes that BUFFER is already rendered."
   "Re-renders TWEET at POINT in BUFFER.  If POINT is nil, it is
 searched for in BUFFER.  If POINT is not nil and the
 twitching-status under POINT does not equal TWEET, returns nil.
-If BUFFER is not provided, `(current-buffer) is assumed. "
+If BUFFER is not provided, `(current-buffer) is assumed."
   (when (not point) (setq point (find-twitching-status tweet buffer)))
   (when (not buffer) (setq buffer (current-buffer)))
   (let* ((status (get-text-property point 'tweet buffer))
