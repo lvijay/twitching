@@ -1132,4 +1132,4 @@ equivalent string."
 
 (provide 'twitching)
 
-;;; twitching.el ends he
+;;; twitching.el ends here
