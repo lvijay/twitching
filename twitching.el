@@ -1121,6 +1121,9 @@ number."
 replaces spaces with %20."
   (replace-regexp-in-string " " "%20" (url-insert-entities-in-string s) nil))
 
+(defvar html-decode-replacements '(("&quot;" . "'") ("&rsquo;" . "'"))
+  "Strings and their replacements.")
+
 (defun html-decode (string)
   "Replace all substrings in STRING of the form &#[0-9]+; with the
 equivalent string."
@@ -1129,7 +1132,7 @@ equivalent string."
                    s
                  (let ((s (substring s 2 (1- (length s)))))
                    (string (string-to-number s))))))
-        (reps '(("&quot;" . "'") ("&rsquo;" . "'"))))
+        (reps html-decode-replacements))
     (loop for (str . repl) in reps
           do (setq str (regexp-quote str))
           do (setq string (replace-regexp-in-string str repl string)))
