@@ -1128,7 +1128,11 @@ equivalent string."
                (if (string= s "&#;")
                    s
                  (let ((s (substring s 2 (1- (length s)))))
-                   (string (string-to-number s)))))))
+                   (string (string-to-number s))))))
+        (reps '(("&quot;" . "'") ("&rsquo;" . "'"))))
+    (loop for (str . repl) in reps
+          do (setq str (regexp-quote str))
+          do (setq string (replace-regexp-in-string str repl string)))
     (replace-regexp-in-string "&#[0-9]*;" rep string)))
 
 (provide 'twitching)
