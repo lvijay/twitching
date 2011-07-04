@@ -87,7 +87,7 @@ timeline.")
     (message "twitching timer not running.")))
 
 ;;;###autoload
-(defun twitching-home-timeline-get (&optional n)
+(defun twitching-home-timeline-get (n)
   "Fetch home timeline."
   (interactive "P")
   (let ((buffer (get-twitching-buffer))
