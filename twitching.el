@@ -183,7 +183,7 @@ takes one argument and returns the object representation."
                                (symbol-name (symbol-name (second field)))
                                (keyword-field (intern (concat ":" symbol-name)))
                                (struct-field keyword-field)
-                               (form `(cdr (assoc ',json-field json-object)))
+                               (form `(cdr-assoc ',json-field json-object))
                                (key-fn (third field)))
                           (if key-fn
                               `(,struct-field (preprop (funcall ,key-fn ,form)))
@@ -374,7 +374,7 @@ not need filtering."
                        (url . *twitching-urls-category*)
                        (text . *twitching-plaintext-category*)))
          (fn (lambda (list type)
-               (mapcar (lambda (x) `(,@(cdr (assoc 'indices x)) ,type)) list)))
+               (mapcar (lambda (x) `(,@(cdr-assoc 'indices x) ,type)) list)))
          (hashtags (funcall fn hashtags 'hashtag))
          (mentions (funcall fn mentions 'mention))
          (urls (funcall fn urls 'url))
@@ -394,7 +394,7 @@ not need filtering."
                     (let* ((txt (substring text (first idx) (second idx)))
                            (txt (html-decode txt))
                            (type (third idx)))
-                      (propertize txt 'category (cdr (assoc type properties)))))
+                      (propertize txt 'category (cdr-assoc type properties))))
                   (reverse result)))
     (with-temp-buffer
       (insert (apply #'concat result))
@@ -721,7 +721,7 @@ the current tweet."
   (let* ((entities (twitching-status-entities tweet))
          (elems (funcall entity-elem-fn entities))
          (elem (nth (1- n) elems)))
-    (cdr (assoc key elem))))
+    (cdr-assoc key elem)))
 
 (defun twitching-follow-user (screen-name)
   "Get user input for a Twitter SCREEN-NAME and start following
@@ -758,7 +758,7 @@ POINT."
                  (let* ((entities (twitching-status-entities tweet))
                         (hashtags (twitching-entity-hashtags entities)))
                    (loop for hte in hashtags
-                         if (string= hashtag (downcase (cdr (assoc 'text hte))))
+                         if (string= hashtag (downcase (cdr-assoc 'text hte)))
                          return t
                          finally return nil))))
            (doc (concat "Filter #" ht-raw))
@@ -1138,6 +1138,10 @@ equivalent string."
           do (setq str (regexp-quote str))
           do (setq string (replace-regexp-in-string str repl string)))
     (replace-regexp-in-string "&#[0-9]*;" rep string)))
+
+(defun cdr-assoc (key list)
+  "Return (cdr (assoc KEY LIST))"
+  (cdr (assoc key list)))
 
 (provide 'twitching)
 
