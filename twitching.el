@@ -548,6 +548,10 @@ tweet'."
       (define-key copy-map (kbd "u") 'twitching-copy-tweet-url)
       (define-key copy-map (kbd "t") 'twitching-copy-tweet-text)
       (define-key keymap (kbd "c") copy-map))
+    (let ((extras-map (make-sparse-keymap)))
+      (define-key extras-map (kbd "s") 'twitching-sort-page)
+      ;; extra commands that don't fit into any particular category.
+      (define-key keymap (kbd "C-c") extras-map))
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
@@ -927,6 +931,35 @@ time as a local time."
   (interactive "d")
   (with-tweet-under-point tweet (point)
     (kill-new (twitching-status-id tweet))))
+
+
+;;; Sort page
+(defun twitching-sort-page (switchp)
+  (interactive "P")
+  (let ((buffer (get-buffer-create "*Sorted Twitching*"))
+        (fn (lambda (x y)
+              (string< (twitching-user-screen-name (twitching-status-user x))
+                       (twitching-user-screen-name (twitching-status-user y)))))
+        (tweets (list))
+        text)
+    (with-twitching-buffer (get-twitching-buffer)
+      (setq text (twitching-filter-text (buffer-substring-no-properties
+                                         (point-min) (point-max)))))
+    (with-twitching-buffer buffer
+      (delete-region (point-min) (point-max))
+      (let (result
+            (read-start 0))
+        (while (ignore-errors (setq result (read-from-string text read-start)))
+          (let* ((status (car result))
+                 (read-end (cdr result)))
+            (setq read-start read-end)
+            (push status tweets))))
+      (setq tweets (sort tweets fn))
+      (dolist (tweet tweets)
+        (insert (format "%S\n" tweet)))
+      (twitching-render-region (point-min) (point-max) buffer)
+      (goto-char (point-min)))
+    (when switchp (switch-to-buffer buffer))))
 
 
 ;;; Twitter API interactions
