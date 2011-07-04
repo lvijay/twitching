@@ -551,7 +551,7 @@ tweet'."
     (let ((extras-map (make-sparse-keymap)))
       (define-key extras-map (kbd "s") 'twitching-sort-page)
       ;; extra commands that don't fit into any particular category.
-      (define-key keymap (kbd "C-c") extras-map))
+      (define-key keymap (kbd "x") extras-map))
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
