@@ -531,9 +531,14 @@ tweet'."
       (define-key keymap (kbd "a") action-map))
     (let ((filter-map (make-sparse-keymap)))
       (define-key filter-map (kbd "#") 'twitching-filter-hashtag)
-      (define-key filter-map (kbd "u") 'twitching-filter-user)
+      (define-key filter-map (kbd "@") 'twitching-filter-user)
       (define-key filter-map (kbd "w") 'twitching-filter-word)
       (define-key keymap (kbd "f") filter-map))
+    (let ((remove-map (make-sparse-keymap)))
+      (define-key remove-map (kbd "#") 'twitching-remove-hashtag)
+      (define-key remove-map (kbd "@") 'twitching-remove-user)
+      (define-key remove-map (kbd "w") 'twitching-remove-word)
+      (define-key keymap (kbd "r") remove-map))
     (let ((copy-map (make-sparse-keymap)))
       (define-key copy-map (kbd "m") 'twitching-copy-tweet-mention)
       (define-key copy-map (kbd "a") 'twitching-copy-tweet-author)
@@ -834,6 +839,24 @@ filters the user that has made the tweet."
                                (point-max)
                                (current-buffer))
       (goto-char (min point (point-max))))))
+
+(defun twitching-remove-hashtag (n point)
+  "Remove the N-th hashtag in the tweet at POINT from all tweets
+in current buffer."
+  (interactive "p\nd")
+  (twitching-filter-hashtag n point)
+  (pop *twitching-filters*))
+
+(defun twitching-remove-user (n point)
+  (interactive "p\nd")
+  (twitching-filter-user n point)
+  (pop *twitching-filters*))
+
+(defun twitching-remove-word (word)
+  "Remove word from all tweets in the current buffer."
+  (interactive "sEnter filter word: ")
+  (twitching-filter-word word)
+  (pop *twitching-filters*))
 
 ;;; copy methods
 (defun twitching-copy-tweet-text (point)
