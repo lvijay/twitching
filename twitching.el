@@ -934,17 +934,19 @@ time as a local time."
 
 
 ;;; Sort page
-(defun twitching-sort-page (switchp)
-  (interactive "P")
+(defun twitching-sort-page (point switchp)
+  "Take all tweets from POINT until (point-max), sort them by
+username and put them in the buffer \"*Sorted Twitching*\""
+  (interactive "d\nP")
   (let ((buffer (get-buffer-create "*Sorted Twitching*"))
+        (cb (current-buffer))
         (fn (lambda (x y)
               (string< (twitching-user-screen-name (twitching-status-user x))
                        (twitching-user-screen-name (twitching-status-user y)))))
         (tweets (list))
         text)
-    (with-twitching-buffer (get-twitching-buffer)
-      (setq text (twitching-filter-text (buffer-substring-no-properties
-                                         (point-min) (point-max)))))
+    (destructuring-bind (b lb ub) (get-twitching-tweet-bounds point cb)
+      (setq text (buffer-substring-no-properties lb (point-max))))
     (with-twitching-buffer buffer
       (delete-region (point-min) (point-max))
       (let (result
