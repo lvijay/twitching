@@ -531,6 +531,7 @@ tweet'."
       (define-key keymap (kbd "a") action-map))
     (let ((filter-map (make-sparse-keymap)))
       (define-key filter-map (kbd "#") 'twitching-filter-hashtag)
+      (define-key filter-map (kbd "u") 'twitching-filter-user)
       (define-key filter-map (kbd "w") 'twitching-filter-word)
       (define-key keymap (kbd "f") filter-map))
     (let ((copy-map (make-sparse-keymap)))
@@ -773,6 +774,46 @@ POINT."
                                      (current-buffer))
             (goto-char (min point (point-max))))
         (error "No hashtag in tweet.")))))
+
+(defun twitching-filter-user (n point)
+  "Create a filter that filters the N-th user in the tweet at
+POINT.  Counting starts at 1.  With a prefix argument of 0,
+filters the user that has made the tweet."
+  (interactive "p\nd")
+  (with-tweet-under-point tweet (point)
+    (let* (mention
+           (fn (lambda (tweet mention)
+                 (let* ((entities (twitching-status-entities tweet))
+                        (mentions (twitching-entity-mentions entities))
+                        (username (twitching-user-screen-name
+                                   (twitching-status-user tweet)))
+                        (username (downcase username)))
+                   (or 
+                    (string-match-p mention username)
+                    (loop for me in mentions
+                       if (string-match-p mention (cdr-assoc 'screen_name me))
+                         return t
+                       finally return nil))))))
+      (if (= n 0)
+          (setq mention (twitching-user-screen-name
+                         (twitching-status-user tweet)))
+        (let* ((elem-fn #'twitching-entity-mentions)
+               (key 'screen_name))
+          (setq mention (twitching-get-nth-entity tweet elem-fn key n))))
+      (if mention
+          (when (y-or-n-p (concat "Create new filter on @" mention "? "))
+            (let* ((username (twitching-filter-escape mention))
+                   (doc (concat "Filter @" mention))
+                   (filter (make-twitching-filter :documentation doc
+                                                  :action fn
+                                                  :args (list username))))
+              (push filter *twitching-filters*)
+              (twitching-render-region (point-min)
+                                       (point-max)
+                                       (current-buffer))
+              (goto-char (min point (point-max)))
+              (message (concat "Filtered buffer for @" mention))))
+        (error "No mention in tweet.")))))
 
 (defun twitching-filter-word (word)
   (interactive "sEnter filter word: ")
