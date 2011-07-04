@@ -29,6 +29,7 @@
 ;;;
 ;;; Copyright: This code is in the public domain.
 
+(require 'hex-util)
 (require 'sha1)
 
 (defun hmac-sha1 (key message)
