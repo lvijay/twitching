@@ -765,8 +765,7 @@ POINT."
                                           :args (list hashtag))))
       (if hashtag
           (when (y-or-n-p (concat "Create new filter on " ht-raw "? "))
-            (setq *twitching-filters*
-                  (nconc *twitching-filters* (list filter)))
+            (push filter *twitching-filters*)
             (twitching-render-region (point-min)
                                      (point-max)
                                      (current-buffer))
