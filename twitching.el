@@ -764,18 +764,18 @@ POINT."
            (key 'text)
            (ht-raw (twitching-get-nth-entity tweet elem-fn key n)))
       (if ht-raw
-          (let ((hashtag (twitching-filter-escape ht-raw))
-                (fn (lambda (tweet hashtag)
-                      (let* ((entities (twitching-status-entities tweet))
-                             (hashtags (twitching-entity-hashtags entities)))
-                        (loop for hte in hashtags
+          (let* ((hashtag (twitching-filter-escape ht-raw))
+                 (fn (lambda (tweet hashtag)
+                       (let* ((entities (twitching-status-entities tweet))
+                              (hashtags (twitching-entity-hashtags entities)))
+                         (loop for hte in hashtags
                            if (string= hashtag (downcase (cdr-assoc 'text hte)))
                            return t
                            finally return nil))))
-                (doc (concat "Filter #" ht-raw))
-                (filter (make-twitching-filter :documentation doc
-                                               :action fn
-                                               :args (list hashtag))))
+                 (doc (concat "Filter #" ht-raw))
+                 (filter (make-twitching-filter :documentation doc
+                                                :action fn
+                                                :args (list hashtag))))
             (when (y-or-n-p (concat "Create new filter on #" ht-raw "? "))
               (push filter *twitching-filters*)
               (twitching-render-region (point-min)
