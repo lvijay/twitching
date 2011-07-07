@@ -1030,15 +1030,18 @@ response or nil if there was no response."
                  (params (twitching-api-get-params))
                  (stats (twitching-api-get-statuses url params "GET")))
             (if stats
-                (setq statuses (append statuses stats)
+                (setq statuses (nconc stats statuses)
                       page (1+ page))
               (return-from loop))
             (if (and (numberp *twitching-api-page-limit*)
                      (>= page *twitching-api-page-limit*))
                 (return-from loop))))))
     (when statuses
-      (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
-                             statuses :key #'twitching-status-id)))
+      (setq statuses (sort statuses
+                           (lambda (x y)
+                             (string< (twitching-status-id x)
+                                      (twitching-status-id y)))))
+      (let ((highest (twitching-status-id (car (last statuses)))))
         (cons statuses highest)))))
 
 (defun twitching-api-check-keys ()
