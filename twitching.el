@@ -1255,7 +1255,36 @@ stored in the local filesystem.  Returns nil if
 
 (defun twitching-profile-download-images ()
   "Download pending images and save them."
-  )
+  (unwind-protect
+      (dolist (user *twitching-profile-users-pending*)
+        (let* ((url (twitching-user-profile-image-url user))
+               (extension (file-name-extension url))
+               (screen-name (twitching-user-screen-name user))
+               (image-file (concat screen-name "." extension))
+               (dir (file-name-as-directory *twitching-profile-directory*))
+               (image-file (concat dir image-file))
+               (text-file (concat screen-name ".txt"))
+               (text-file (concat dir text-file))
+               (md5 (md5 url))
+               (callback
+                (lambda (status image-file text-file md5 screen-name)
+                  (if (cdr-assoc :error status) nil
+                    (let* ((response (buffer-string))
+                           (response (http-extract-response-body response)))
+                      (kill-buffer)
+                      (with-temp-buffer
+                        (insert response)
+                        (write-file image-file 'nil))
+                      (with-temp-buffer
+                        (insert md5)
+                        (write-file text-file 'nil))
+                      (puthash screen-name image-file
+                               *twitching-profile-user-map*)))))
+               (cbargs (list image-file text-file md5 screen-name))
+               (silent 't)
+               (url-request-method "GET"))
+          (url-retrieve url callback cbargs silent)))
+    (setq *twitching-profile-timer* nil)))
 
 
 ;;; General utility functions that should probably be elsewhere.
