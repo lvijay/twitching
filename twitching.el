@@ -1088,7 +1088,7 @@ is GET."
   (let ((response (twitching-api-oauth-get-http-response
                    url params-alist (or method "GET"))))
     (when (and (stringp response) (twitching-api-request-success-p response))
-      (let ((response-body (twitching-api-extract-response-body response))
+      (let ((response-body (http-extract-response-body response))
             (json-false 'nil)
             (json-array-type 'list))
         (let ((statuses (json-read-from-string response-body)))
@@ -1105,7 +1105,7 @@ is GET."
          (json-false 'nil)
          (response (twitching-api-oauth-get-http-response url nil "POST")))
     (when (twitching-api-request-success-p response)
-      (let* ((body (twitching-api-extract-response-body response))
+      (let* ((body (http-extract-response-body response))
              (status (json-read-from-string body))
              (new-tweet (new-twitching-status status)))
         ;; Because we don't set "include_entities=1" in this request,
@@ -1153,15 +1153,6 @@ return the response as a string."
   "Returns t if RESPONSE contains \"HTTP/1.1 200 OK\""
   (= 200 (url-get-http-status-code response)))
 
-(defun twitching-api-extract-response-body (response)
-  "Extracts the response body, ignoring the headers from
-RESPONSE."
-  (let ((content-start (string-match "\n\n" response)))
-    (when (>= content-start 0)
-      (let ((content (substring response (+ content-start 2)))
-            (json-array-type 'list))
-        content))))
-
 (defun twitching-api-form-url (url params-alist)
   "Form the full url with its query parameters from URL and PARAMS-ALIST"
   (unless (string-match-p (concat (regexp-quote "?") "$") url)
@@ -1192,6 +1183,16 @@ RESPONSE."
 
 
 ;;; General utility functions that should probably be elsewhere.
+(defun http-extract-response-body (response)
+  "Extracts the response body, ignoring the headers from
+RESPONSE."
+  (let ((content-start (string-match-p "\n\n" response)))
+    (when (>= content-start 0)
+      (let ((content (substring response (+ content-start 2)))
+            (json-array-type 'list))
+        content))))
+
+;; TODO: rewrite below to use `url-retrieve-synchronously'
 (defun url-retrieve-synchronously-as-string (url &optional headers request-method)
   "Retrieves the contents of URL and returns the response as a
 string.  Passes HEADERS with the request and the request is made
