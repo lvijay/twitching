@@ -1209,6 +1209,55 @@ return the response as a string."
     params))
 
 
+;;; Profile thumbnails
+(defvar *twitching-profile-use-p* t
+  "Setq this to nil to disable use of thumbnails.")
+
+(defvar *twitching-profile-directory*
+  (concat (file-name-as-directory *twitching-api-user-dir*) "thumbnails")
+  "Where the image thumbnails are stored.")
+
+(eval-when-compile
+  (let ((dir *twitching-profile-directory*))
+    (if (not (file-exists-p dir))
+        (make-directory dir t)
+      (and (file-directory-p dir)
+           (file-accessible-directory-p dir)))))
+
+(defvar *twitching-profile-users-pending* '()
+  "List of users whose profile pictures need to be downloaded.")
+
+(defvar *twitching-profile-timer* nil
+  "Timer that downloads and saves pending user's profile
+images.")
+
+(defvar *twitching-profile-user-map*
+  (make-hash-table :test 'equal :weak t :size 179)
+  "Map of user profiles and their locations in the filesystem.")
+
+(defun twitching-profile-get-image-file (twitching-user)
+  "Returns the filename of TWITCHING-USER's profile image url as
+stored in the local filesystem.  Returns nil if
+*twitching-profile-use-p* is nil."
+  (if (not *twitching-profile-use-p*) nil
+    (let* ((key (twitching-user-screen-name twitching-user))
+           (val (gethash key)))
+      (if (not val)
+          ;; download it
+          (progn
+            (push twitching-user *twitching-profile-users-pending*)
+            (when (not *twitching-profile-timer*)
+              (setq *twitching-profile-timer*
+                    (run-with-idle-timer 60
+                                         nil
+                                         #'twitching-profile-download-images))))
+        val))))
+
+(defun twitching-profile-download-images ()
+  "Download pending images and save them."
+  )
+
+
 ;;; General utility functions that should probably be elsewhere.
 (defun http-extract-response-body (response)
   "Extracts the response body, ignoring the headers from
