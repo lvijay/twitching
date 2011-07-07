@@ -30,7 +30,7 @@
 
 
 ;;; dependencies
-(require 'cl)
+(eval-when-compile (require 'cl))
 (require 'url)
 (require 'url-util)
 (require 'hmac-sha1)
