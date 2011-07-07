@@ -548,10 +548,10 @@ tweet'."
       (define-key copy-map (kbd "u") 'twitching-copy-tweet-url)
       (define-key copy-map (kbd "t") 'twitching-copy-tweet-text)
       (define-key keymap (kbd "c") copy-map))
-    (let ((extras-map (make-sparse-keymap)))
-      (define-key extras-map (kbd "s") 'twitching-sort-page)
-      ;; extra commands that don't fit into any particular category.
-      (define-key keymap (kbd "x") extras-map))
+    (let ((group-map (make-sparse-keymap)))
+      (define-key group-map (kbd "a") 'twitching-group-all)
+      (define-key group-map (kbd "@") 'twitching-group-mention)
+      (define-key keymap (kbd "g") group-map))
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
@@ -791,18 +791,7 @@ filters the user that has made the tweet."
   (interactive "p\nd")
   (with-tweet-under-point tweet (point)
     (let* (mention
-           (fn (lambda (tweet mention)
-                 (let* ((entities (twitching-status-entities tweet))
-                        (mentions (twitching-entity-mentions entities))
-                        (username (twitching-user-screen-name
-                                   (twitching-status-user tweet)))
-                        (username (downcase username)))
-                   (or 
-                    (string-match-p mention username)
-                    (loop for me in mentions
-                       if (string-match-p mention (cdr-assoc 'screen_name me))
-                         return t
-                       finally return nil))))))
+           (fn #'do-twitching-filter-mention))
       (if (= n 0)
           (setq mention (twitching-user-screen-name
                          (twitching-status-user tweet)))
@@ -843,6 +832,19 @@ filters the user that has made the tweet."
                                (point-max)
                                (current-buffer))
       (goto-char (min point (point-max))))))
+
+(defun do-twitching-filter-mention (tweet mention)
+  (let* ((entities (twitching-status-entities tweet))
+         (mentions (twitching-entity-mentions entities))
+         (username (twitching-user-screen-name
+                    (twitching-status-user tweet)))
+         (username (downcase username)))
+    (or 
+     (string-match-p mention username)
+     (loop for me in mentions
+           if (string-match-p mention (cdr-assoc 'screen_name me))
+           return t
+           finally return nil))))
 
 (defun twitching-remove-hashtag (n point)
   "Remove the N-th hashtag in the tweet at POINT from all tweets
@@ -933,12 +935,15 @@ time as a local time."
     (kill-new (twitching-status-id tweet))))
 
 
-;;; Sort page
-(defun twitching-sort-page (point switchp)
+;;; Grouping
+(defun twitching-group-all (point switchp &optional buffer-name)
   "Take all tweets from POINT until (point-max), sort them by
-username and put them in the buffer \"*Sorted Twitching*\""
+username and put them in BUFFER-NAME.  If provided, BUFFER-NAME
+will be used, else the grouped tweets will be stored in
+\"*Twitching Grouped All*\""
   (interactive "d\nP")
-  (let ((buffer (get-buffer-create "*Sorted Twitching*"))
+  (setq buffer-name (or buffer-name "*All Grouped Twitching*"))
+  (let ((buffer (get-buffer-create buffer-name))
         (cb (current-buffer))
         (fn (lambda (x y)
               (let ((key (lambda (x)
@@ -964,7 +969,26 @@ username and put them in the buffer \"*Sorted Twitching*\""
         (insert (format "%S\n" tweet)))
       (twitching-render-region (point-min) (point-max) buffer)
       (goto-char (point-min)))
-    (when switchp (switch-to-buffer buffer))))
+    (if switchp
+        (switch-to-buffer buffer)
+      (message (concat "tweets grouped in buffer " buffer-name)))))
+
+(defun twitching-group-mention (point switchp)
+  "Group all tweets by the tweeter under POINT and put them in
+the buffer (concat \"*Twitching Group \" SCREEN_NAME \"*\")
+where SCREEN_NAME is the tweeter's screen name."
+  (interactive "d\nP")
+  (with-tweet-under-point tweet (point)
+    (let* ((user (twitching-status-user tweet))
+           (screen-name (twitching-user-screen-name user))
+           (filter (make-twitching-filter
+                    :documentation (format "Ignore all but %s" screen-name)
+                    :action (lambda (&rest args)
+                              (not (apply #'do-twitching-filter-mention args)))
+                    :args (list screen-name)))
+           (buffer-name (format "*Twitching Group %s*" screen-name)))
+      (let ((*twitching-filters* (cons filter *twitching-filters*)))
+        (twitching-group-all point switchp buffer-name)))))
 
 
 ;;; Twitter API interactions
