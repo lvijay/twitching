@@ -1019,24 +1019,23 @@ however, it does this only once.  Returns the cons (statuses
 . since_id) where since_id is the highest since_id in the
 response or nil if there was no response."
   (let ((page 1)
-        (continuep 't)
         (count (or *twitching-api-count* 20))
         statuses)
     (if (and (not *twitching-api-since-id*) (not fullyp))
         (setq statuses (twitching-api-get-statuses url
                                                    (twitching-api-get-params)))
-      (progn
-        (while continuep
+      (block loop
+        (while t
           (let* ((*twitching-api-page-number* page)
                  (params (twitching-api-get-params))
                  (stats (twitching-api-get-statuses url params "GET")))
             (if stats
                 (setq statuses (append statuses stats)
                       page (1+ page))
-              (setq continuep 'nil))
+              (return-from loop))
             (if (and (numberp *twitching-api-page-limit*)
                      (>= page *twitching-api-page-limit*))
-                (setq continuep 'nil))))))
+                (return-from loop))))))
     (when statuses
       (let ((highest (reduce (lambda (x y) (if (string-lessp x y) y x))
                              statuses :key #'twitching-status-id)))
