@@ -941,8 +941,11 @@ username and put them in the buffer \"*Sorted Twitching*\""
   (let ((buffer (get-buffer-create "*Sorted Twitching*"))
         (cb (current-buffer))
         (fn (lambda (x y)
-              (string< (twitching-user-screen-name (twitching-status-user x))
-                       (twitching-user-screen-name (twitching-status-user y)))))
+              (let ((key (lambda (x)
+                           (downcase (twitching-user-screen-name
+                                      (twitching-status-user x))))))
+                (string< (funcall key x)
+                         (funcall key y)))))
         (tweets (list))
         text)
     (destructuring-bind (b lb ub) (get-twitching-tweet-bounds point cb)
