@@ -1228,8 +1228,9 @@ return the response as a string."
 
 
 ;;; Profile thumbnails
-(defvar *twitching-profile-use-p* t
-  "Setq this to nil to disable use of thumbnails.")
+(defvar *twitching-profile-use-p* 'nil
+  "Setq this to t to enable display of user profile pics with
+tweets.")
 
 (defvar *twitching-profile-directory*
   (concat (file-name-as-directory *twitching-api-user-dir*) "thumbnails")
