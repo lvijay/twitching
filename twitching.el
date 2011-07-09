@@ -347,12 +347,15 @@ not need filtering."
                                          (date-to-time created-at)))
          (user (twitching-status-user status))
          (screen-name (twitching-user-screen-name user))
+         (image (twitching-profile-get-image user))
          (user-name (twitching-user-name user))
          (favoritedp (twitching-status-favoritedp status))
          (retweetedp (twitching-status-retweetedp status))
          (sep *twitching-separator*)
-         (screen-name (propertize screen-name
-                                  'category '*twitching-screen-name-category*))
+         (screen-name (if image
+                          (propertize screen-name 'display image)
+                        (propertize screen-name
+                                    'category '*twitching-screen-name-category*)))
          (user-name (propertize user-name
                                 'category '*twitching-user-name-category*))
          (created-at (propertize created-at
