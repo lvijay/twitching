@@ -60,7 +60,6 @@ to a tweet or retweet.  Contributions to do the same are of
 course welcome.  They aren't on the TODO list as of now.
 
 Upcoming Features
-=================
+-----------------
 
 See the TODO file for details on upcoming features.
-
