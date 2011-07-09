@@ -1235,23 +1235,43 @@ images.")
   (make-hash-table :test 'equal :weakness nil :size 179)
   "Map of user profiles and their locations in the filesystem.")
 
-(defun twitching-profile-get-image-file (twitching-user)
-  "Returns the filename of TWITCHING-USER's profile image url as
+(defun twitching-profile-get-image (user)
+  "Returns the filename of USER's profile image url as
 stored in the local filesystem.  Returns nil if
 *twitching-profile-use-p* is nil."
   (if (not *twitching-profile-use-p*) nil
-    (let* ((key (twitching-user-screen-name twitching-user))
-           (val (gethash key)))
-      (if (not val)
-          ;; download it
-          (progn
-            (push twitching-user *twitching-profile-users-pending*)
-            (when (not *twitching-profile-timer*)
-              (setq *twitching-profile-timer*
-                    (run-with-idle-timer 30
-                                         nil
-                                         #'twitching-profile-download-images))))
-        val))))
+    (let* ((key (twitching-profile-user-key user))
+           (val (gethash key *twitching-profile-user-map*)))
+      (if val
+          val
+        (prog1
+            ;; if the file exists, just return the file.
+            (let ((image-file (twitching-profile-user-image-file user)))
+              (if (file-exists-p image-file)
+                  (create-image image-file)
+                'nil))
+          (push user *twitching-profile-users-pending*)
+          (when (not *twitching-profile-timer*)
+            (setq *twitching-profile-timer*
+                  (run-with-idle-timer
+                   30
+                   nil
+                   #'twitching-profile-download-images))))))))
+
+(defun twitching-profile-user-key (user)
+  "Given USER, return the key representation to store in
+`*twitching-profile-user-map*'."
+  (downcase (twitching-user-screen-name user)))
+
+(defun twitching-profile-user-image-file (user)
+  "Given the USER, return the file that it would be saved as."
+  (let* ((url (twitching-user-profile-image-url user))
+         (extension (file-name-extension url))
+         (screen-name (twitching-user-screen-name user))
+         (dir (file-name-as-directory *twitching-profile-directory*))
+         (image-file (concat screen-name "." extension))
+         (image-file (concat dir image-file)))
+    image-file))
 
 (defun twitching-profile-download-images ()
   "Download pending images and save them."
@@ -1262,14 +1282,10 @@ stored in the local filesystem.  Returns nil if
    as i from 1 to 5                  ; at most 5 downloads in parallel
    as user = (pop *twitching-profile-users-pending*)
    while user
-   do (let* ((url (twitching-user-profile-image-url user))
-             (extension (file-name-extension url))
-             (screen-name (twitching-user-screen-name user))
-             (dir (file-name-as-directory *twitching-profile-directory*))
-             (image-file (concat screen-name "." extension))
-             (image-file (concat dir image-file))
+   do (let* ((key (twitching-profile-user-key user))
+             (image-file (twitching-profile-user-image-file user))
              (callback
-              (lambda (status image-file screen-name)
+              (lambda (status image-file key)
                 (unwind-protect
                     (if (cdr-assoc :error status) nil
                       (let* ((response (buffer-string))
@@ -1277,14 +1293,17 @@ stored in the local filesystem.  Returns nil if
                         (with-temp-buffer
                           (insert response)
                           (write-file image-file 'nil))
-                        (puthash screen-name (create-image image-file)
+                        (puthash key (create-image image-file)
                                  *twitching-profile-user-map*)))
                   (kill-buffer))))
              (cbargs (list image-file screen-name))
              (silent 't)
              (url-request-method "GET"))
-        (unless (file-exists-p image-file)
-          (url-retrieve url callback cbargs silent))))
+        (if (not (file-exists-p image-file))
+            (url-retrieve url callback cbargs silent)
+          (if (not (gethash key *twitching-profile-user-map*))
+              (puthash key (create-image image-file)
+                       *twitching-profile-user-map*)))))
   ;; start the timer again if there are more items to download
   (if *twitching-profile-users-pending*
       (setq *twitching-profile-timer*
