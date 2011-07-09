@@ -42,7 +42,7 @@ tweets, or group just tweets by a single user.
 7. Follow/UnFollow users.
 
 8. Open a hashtag in a browser.  If you see a few tweets
-with `#interviewswithhari` and want to see more you can open
+with [`#interviewswithhari`](http://twitter.com/#!/search/%23interviewswithhari) and want to see more you can open
 it up on the browser.  This is currently not supported as
 viewing in emacs.
 
