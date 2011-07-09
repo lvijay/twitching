@@ -1,0 +1,43 @@
+TODO
+----
+
+1. Support more types of filters, such as:
+
+  * Filters on regular expressions.
+
+  * Composite filters.  
+
+    For example, a filter on tweets from `@thedailybeast`
+    that have the the hashtag `#cheatsheet`.
+
+2. Actions
+
+  Think of these as filters on steroids.  An _action_ is a
+  function executed when a tweet matches some filter.
+
+  For instance, if I'm very interested in tweets from
+  [PTI](http://twitter.com/#!/PTI_News "Press Trust of
+  India") that contain the word "`corruption`", I'd like to
+  automatically favorite them so that I don't miss any.
+
+  While this is easy to do programatically, the goal is to
+  provide an interactive way to do all this.  Think of
+  Microsoft Outlook's "Rules and Alerts" interface.
+
+3. Async
+
+  All of twitching's calls are synchronous.  The goal is to
+  make all these calls asynchronous.  Technically, this
+  shouldn't be too hard.  We are already using the url
+  library's url-retrieve which provides an async interface.
+
+4. Thumbnails
+
+  Show the profile thumbnail of a twitter user along with
+  the tweet.
+
+5. Menus
+
+  There's only a keyboard interface with all the keyboard
+  shortcuts.  Providing clickable menus would help new users
+  greatly.
