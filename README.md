@@ -94,7 +94,7 @@ and authorize your app.  After this, you will be shown a 7
 digit number on the browser.  Enter this at the emacs
 minibuffer.
 
-#### Getting your own consumer-key and consumer-secret.
+### Getting your own consumer-key and consumer-secret.
 
 To get your own `consumer-key` and `consumer-secret`, go to
 <https://dev.twitter.com/apps/new> and register a new
