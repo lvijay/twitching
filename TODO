@@ -31,12 +31,7 @@ TODO
   shouldn't be too hard.  We are already using the url
   library's url-retrieve which provides an async interface.
 
-4. Thumbnails
-
-  Show the profile thumbnail of a twitter user along with
-  the tweet.
-
-5. Menus
+4. Menus
 
   There's only a keyboard interface with all the keyboard
   shortcuts.  Providing clickable menus would help new users
