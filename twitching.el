@@ -1251,15 +1251,16 @@ stored in the local filesystem.  Returns nil if
             ;; if the file exists, just return the file.
             (let ((image-file (twitching-profile-user-image-file user)))
               (if (file-exists-p image-file)
-                  (create-image image-file)
+                  (twitching-profile-save-image key image-file)
                 'nil))
           (push user *twitching-profile-users-pending*)
-          (when (not *twitching-profile-timer*)
-            (setq *twitching-profile-timer*
-                  (run-with-idle-timer
-                   30
-                   nil
-                   #'twitching-profile-download-images))))))))
+          (when *twitching-profile-timer*
+            (cancel-timer *twitching-profile-timer*))
+          (setq *twitching-profile-timer*
+                (run-with-idle-timer
+                 30
+                 nil
+                 #'twitching-profile-download-images)))))))
 
 (defun twitching-profile-user-key (user)
   "Given USER, return the key representation to store in
@@ -1279,14 +1280,15 @@ stored in the local filesystem.  Returns nil if
 (defun twitching-profile-download-images ()
   "Download pending images and save them."
   (when *twitching-profile-timer*
-    (cancel-timer *twitching-profile-timer*)
-    (setq *twitching-profile-timer* nil))
+    (cancel-timer *twitching-profile-timer*))
+  (setq *twitching-profile-timer* nil)
   (loop
    as i from 1 to 5                  ; at most 5 downloads in parallel
    as user = (pop *twitching-profile-users-pending*)
    while user
    do (let* ((key (twitching-profile-user-key user))
              (image-file (twitching-profile-user-image-file user))
+             (url (twitching-user-profile-image-url user))
              (callback
               (lambda (status image-file key)
                 (unwind-protect
@@ -1296,23 +1298,25 @@ stored in the local filesystem.  Returns nil if
                         (with-temp-buffer
                           (insert response)
                           (write-file image-file 'nil))
-                        (puthash key (create-image image-file)
-                                 *twitching-profile-user-map*)))
+                        (twitching-profile-save-image key image-file)))
                   (kill-buffer))))
-             (cbargs (list image-file screen-name))
+             (cbargs (list image-file key))
              (silent 't)
              (url-request-method "GET"))
         (if (not (file-exists-p image-file))
             (url-retrieve url callback cbargs silent)
           (if (not (gethash key *twitching-profile-user-map*))
-              (puthash key (create-image image-file)
-                       *twitching-profile-user-map*)))))
+              (twitching-profile-save-image key image-file)))))
   ;; start the timer again if there are more items to download
   (if *twitching-profile-users-pending*
       (setq *twitching-profile-timer*
             (run-at-time "1 min"
                          nil
                          #'twitching-profile-download-images))))
+
+(defun twitching-profile-save-image (key image-file)
+  "Saves IMAGE-FILE in the `*twitching-profile-user-map*'."
+  (puthash key (create-image image-file) *twitching-profile-user-map*))
 
 
 ;;; General utility functions that should probably be elsewhere.
