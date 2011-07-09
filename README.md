@@ -56,10 +56,54 @@ Twitching does not provide a way to perform any of Twitter's
 "social networking" features.
 
 As is right now, there is no way to compose a tweet, reply
-to a tweet or retweet.  Contributions to do the same are of
-course welcome.  They aren't on the TODO list as of now.
+to a tweet or retweet.  There's no way to get tweets where
+you're mentioned either.
+
+Contributions to do these are of course welcome.  They
+aren't on the TODO list though.
 
 Upcoming Features
 -----------------
 
 See the TODO file for details on upcoming features.
+
+Usage
+-----
+
+To use twitching, put the files `twitching.el`, `oauth.el`,
+`json.el` and `hmac-sha1` in a directory and add the
+directory to your emacs load-path.
+
+Before you use twitching, you must have a Twitter consumer
+token and consumer token secret.  If you don't already have
+one, see below on how to get these.
+
+    ;;; Twitter mode in emacs
+    (add-to-list 'load-path "c:/code/elisp/twitching")
+    (autoload 'twitching-to-get-my-tweets "twitching" "Start Twitching timer" t)
+    (autoload 'twitching-show-favorites "twitching" "show favorite tweets" t)
+    (autoload 'twitching-home-timeline-get "twitching" "Get twitter home page" t)
+
+To start getting tweets, do `M-x twitching-to-get-my-tweets`.
+
+Twitching will first ask you to enter your consumer key and
+consumer secret.  (See below for details on getting these.)
+After this, twitching will open up a browser window which
+will ask you to enter your username and password.  Enter it
+and authorize your app.  After this, you will be shown a 7
+digit number on the browser.  Enter this at the emacs
+minibuffer.
+
+#### Getting your own consumer-key and consumer-secret.
+
+To get your own `consumer-key` and `consumer-secret`, go to
+<https://dev.twitter.com/apps/new> and register a new
+application.
+
+Select the Application Type as a **Client** type and
+
+Default Access Type as at least **Read & Write**.  
+
+**Read only** will also work but favoriting tweets will not
+be possible.  Filtering, grouping and other features will
+work.
