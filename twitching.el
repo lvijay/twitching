@@ -1232,7 +1232,7 @@ return the response as a string."
 images.")
 
 (defvar *twitching-profile-user-map*
-  (make-hash-table :test 'equal :weakness t :size 179)
+  (make-hash-table :test 'equal :weakness nil :size 179)
   "Map of user profiles and their locations in the filesystem.")
 
 (defun twitching-profile-get-image-file (twitching-user)
