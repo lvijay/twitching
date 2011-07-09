@@ -1248,20 +1248,25 @@ stored in the local filesystem.  Returns nil if
             (push twitching-user *twitching-profile-users-pending*)
             (when (not *twitching-profile-timer*)
               (setq *twitching-profile-timer*
-                    (run-with-idle-timer 60
+                    (run-with-idle-timer 30
                                          nil
                                          #'twitching-profile-download-images))))
         val))))
 
 (defun twitching-profile-download-images ()
   "Download pending images and save them."
-  (unwind-protect
-    (dolist (user *twitching-profile-users-pending*)
-      (let* ((url (twitching-user-profile-image-url user))
+  (when *twitching-profile-timer*
+    (cancel-timer *twitching-profile-timer*)
+    (setq *twitching-profile-timer* nil))
+  (loop
+   as i from 1 to 5                  ; at most 5 downloads in parallel
+   as user = (pop *twitching-profile-users-pending*)
+   while user
+   do (let* ((url (twitching-user-profile-image-url user))
              (extension (file-name-extension url))
              (screen-name (twitching-user-screen-name user))
-             (image-file (concat screen-name "." extension))
              (dir (file-name-as-directory *twitching-profile-directory*))
+             (image-file (concat screen-name "." extension))
              (image-file (concat dir image-file))
              (callback
               (lambda (status image-file screen-name)
@@ -1272,14 +1277,20 @@ stored in the local filesystem.  Returns nil if
                         (with-temp-buffer
                           (insert response)
                           (write-file image-file 'nil))
-                        (puthash screen-name image-file
+                        (puthash screen-name (create-image image-file)
                                  *twitching-profile-user-map*)))
                   (kill-buffer))))
              (cbargs (list image-file screen-name))
              (silent 't)
              (url-request-method "GET"))
-        (url-retrieve url callback cbargs silent)))
-    (setq *twitching-profile-timer* nil)))
+        (unless (file-exists-p image-file)
+          (url-retrieve url callback cbargs silent))))
+  ;; start the timer again if there are more items to download
+  (if *twitching-profile-users-pending*
+      (setq *twitching-profile-timer*
+            (run-at-time "1 min"
+                         nil
+                         #'twitching-profile-download-images))))
 
 
 ;;; General utility functions that should probably be elsewhere.
