@@ -555,7 +555,9 @@ tweet'."
     keymap))
 
 (define-derived-mode twitching-mode nil "Twitching"
-  "Major mode for viewing tweets. \\{twitching-mode-map}")
+  "Major mode for viewing tweets.
+
+\\{twitching-mode-map}")
 
 (defmacro with-twitching-buffer (buffer &rest body)
   (declare (indent 1))
