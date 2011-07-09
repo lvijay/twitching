@@ -42,9 +42,10 @@ tweets, or group just tweets by a single user.
 7. Follow/UnFollow users.
 
 8. Open a hashtag in a browser.  If you see a few tweets
-with [`#interviewswithhari`](http://twitter.com/#!/search/%23interviewswithhari) and want to see more you can open
-it up on the browser.  This is currently not supported as
-viewing in emacs.
+with
+[`#interviewswithhari`](http://twitter.com/#!/search/%23interviewswithhari)
+and want to see more you can open it up on the browser.
+This is currently not supported as viewing in emacs.
 
 9. Open a user mention in the browser.  Same as 8, but for
 user mentions in tweets.
@@ -100,10 +101,8 @@ To get your own `consumer-key` and `consumer-secret`, go to
 <https://dev.twitter.com/apps/new> and register a new
 application.
 
-Select the Application Type as a **Client** type and
-
-Default Access Type as at least **Read & Write**.  
-
+Select the `"Application Type"` as a **Client** type and
+`"Default Access Type"` as at least **Read & Write**.
 **Read only** will also work but favoriting tweets will not
 be possible.  Filtering, grouping and other features will
 work.
