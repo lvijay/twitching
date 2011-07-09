@@ -540,6 +540,7 @@ tweet'."
       (define-key remove-map (kbd "w") 'twitching-remove-word)
       (define-key keymap (kbd "r") remove-map))
     (let ((copy-map (make-sparse-keymap)))
+      (define-key copy-map (kbd "@") 'twitching-copy-tweet-mention)
       (define-key copy-map (kbd "m") 'twitching-copy-tweet-mention)
       (define-key copy-map (kbd "a") 'twitching-copy-tweet-author)
       (define-key copy-map (kbd "d") 'twitching-copy-tweet-date)
