@@ -1219,7 +1219,6 @@ RESPONSE."
             (json-array-type 'list))
         content))))
 
-;; TODO: rewrite below to use `url-retrieve-synchronously'
 (defun url-retrieve-synchronously-as-string (url &optional headers request-method)
   "Retrieves the contents of URL and returns the response as a
 string.  Passes HEADERS with the request and the request is made
@@ -1229,16 +1228,13 @@ GET."
                                        (append url-request-extra-headers headers)
                                      headers))
         (url-request-method (or request-method "GET"))
-        (count 0)
-        (limit 60)
+        buffer
         response)
-    (url-retrieve url (lambda (s)
-                        (setq response (or (buffer-string) ""))
-                        (kill-buffer)))
-    (while (and (null response) (< count limit))
-      (setq count (1+ count))
-      (sleep-for 1))
-    (if (> count limit) (message "Request timed out."))
+    (setq buffer (url-retrieve-synchronously url))
+    (unwind-protect
+        (with-current-buffer buffer
+          (setq response (buffer-string)))
+      (kill-buffer buffer))
     response))
 
 (defun url-get-http-status-code (response)
