@@ -50,6 +50,10 @@ This is currently not supported as viewing in emacs.
 9. Open a user mention in the browser.  Same as 8, but for
 user mentions in tweets.
 
+10. Copy specific parts of a tweet and put it into the
+`kill-ring`.  For example, `c t` copies the tweet text, and
+`c s` copies the current tweet's status id.
+
 Missing Features
 ----------------
 
