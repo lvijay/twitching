@@ -40,10 +40,9 @@ tweets, or group only the tweets of a single user.
 7. Follow/UnFollow users.
 
 8. Open a hashtag in a browser.  If you see a few tweets
-with
-[`#interviewswithhari`](http://twitter.com/#!/search/%23interviewswithhari)
-and want to see more you can open it up on the browser.
-This is currently not supported as viewing in Emacs.
+with [`#interviewswithhari`][interviewswithhari] and want to
+see more you can open it up on the browser.  This is
+currently not supported as viewing in Emacs.
 
 9. Open a user mention in the browser.  Same as 8, but for
 user mentions in tweets.
@@ -108,3 +107,5 @@ Select the `"Application Type"` as a **Client** type and
 **Read only** will also work but favoriting tweets will not
 be possible.  Filtering, grouping and other features will
 work.
+
+[interviewswithhari]: http://twitter.com/#!/search/%23interviewswithhari "Tweets on Johann Hari's interviewing style"
