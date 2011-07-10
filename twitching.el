@@ -1297,7 +1297,12 @@ stored in the local filesystem.  Returns nil if
   "Download pending images and save them."
   (when *twitching-profile-timer*
     (cancel-timer *twitching-profile-timer*))
-  (setq *twitching-profile-timer* nil)
+  (setq *twitching-profile-timer* nil
+        ;; remove duplicate entries first, speeds up download.
+        *twitching-profile-users-pending*
+        (remove-duplicates *twitching-profile-users-pending*
+                           :key #'twitching-user-screen-name
+                           :test #'string-equal))
   (loop
    as i from 1 to 5                  ; at most 5 downloads in parallel
    as user = (pop *twitching-profile-users-pending*)
