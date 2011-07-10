@@ -1,6 +1,10 @@
 TODO
 ----
 
+The below features should be read as a wishlist of where I
+see twitching going.  The features are not ordered in any
+way.
+
 1. Support more types of filters, such as:
 
   * Filters on regular expressions.
@@ -36,3 +40,18 @@ TODO
   There's only a keyboard interface with all the keyboard
   shortcuts.  Providing clickable menus would help new users
   greatly.
+
+5. Persist tweets
+
+  It would be useful to have tweets persisted and rolled
+  over every day so that the `*twitching*` buffer doesn't
+  bloat up in size.
+
+  Twitching was written with this sort of a goal in mind,
+  which is why the tweets written in the buffer are a string
+  representation of the `twitching-status` object.  This
+  way, tweets can be stored in text files and rendered as
+  needed.
+
+  The only pending task here is to actually write the buffer
+  to a file and clear the buffer out periodically.
