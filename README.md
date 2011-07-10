@@ -112,7 +112,7 @@ Displaying User Profile images
 ------------------------------
 
 To enable display of user profile pictures along with their
-tweets, add the following line to your `.Emacs` file after
+tweets, add the following line to your `.emacs` file after
 the customizations mentioned in the section Usage.
 
     ;;; Show user's profile pictures with their tweets.
