@@ -1,3 +1,19 @@
+Sun Jul 10 14:03:59 2011  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	* twitching.el: v0.4.1
+
+	Bug fix to `twitching-profile-get-image'.  Was
+	throwing an error when Emacs couldn't recognize the
+	image file-type.  Specifically, in my case, Emacs
+	didn't recognize the BMP format and the function
+	`image-type' in image.el was throwing an error.
+
+	Optimization: use a special variable :nil to
+	indicate when an image has been downloaded but
+	cannot be rendered by emacs.  This saves a file
+	system lookup for each user profile image that has
+	been downloaded but cannot be rendered by Emacs.
+
 2011-07-10    Vijay Lakshminarayanan <laksvij@gmail.com>
 
 	* twitching.el: Version 0.4.0

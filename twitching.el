@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.4.0
+;;; Version: 0.4.1
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -1263,20 +1263,22 @@ stored in the local filesystem.  Returns nil if
            (val (gethash key *twitching-profile-user-map*)))
       (if val
           val
-        (prog1
-            ;; if the file exists, just return the file.
-            (let ((image-file (twitching-profile-user-image-file user)))
-              (if (file-exists-p image-file)
-                  (twitching-profile-save-image key image-file)
-                'nil))
-          (push user *twitching-profile-users-pending*)
-          (when *twitching-profile-timer*
-            (cancel-timer *twitching-profile-timer*))
-          (setq *twitching-profile-timer*
-                (run-with-idle-timer
-                 30
-                 nil
-                 #'twitching-profile-download-images)))))))
+        (if (eq val :nil)             ; Emacs cannot display the image
+            nil
+          (prog1
+              ;; if the file exists, just return the file.
+              (let ((image-file (twitching-profile-user-image-file user)))
+                (if (file-exists-p image-file)
+                    (twitching-profile-save-image key image-file)
+                  'nil))
+            (push user *twitching-profile-users-pending*)
+            (when *twitching-profile-timer*
+              (cancel-timer *twitching-profile-timer*))
+            (setq *twitching-profile-timer*
+                  (run-with-idle-timer
+                   30
+                   nil
+                   #'twitching-profile-download-images))))))))
 
 (defun twitching-profile-user-key (user)
   "Given USER, return the key representation to store in
@@ -1337,7 +1339,9 @@ stored in the local filesystem.  Returns nil if
 
 (defun twitching-profile-save-image (key image-file)
   "Saves IMAGE-FILE in the `*twitching-profile-user-map*'."
-  (puthash key (create-image image-file) *twitching-profile-user-map*))
+  (let* ((image (ignore-errors (create-image image-file)))
+         (image (or image :nil)))
+    (puthash key image *twitching-profile-user-map*)))
 
 
 ;;; General utility functions that should probably be elsewhere.
