@@ -108,4 +108,38 @@ Select the `"Application Type"` as a **Client** type and
 be possible.  Filtering, grouping and other features will
 work.
 
+Displaying User Profile images
+------------------------------
+
+To enable display of user profile pictures along with their
+tweets, add the following line to your `.Emacs` file after
+the customizations mentioned in the section Usage.
+
+    ;;; Show user's profile pictures with their tweets.
+    (setq *twitching-profile-use-p* t)
+
+Twitching will lazily download the user profile images and
+store them in your filesystem.  So immediately after
+enabling this feature, your twitching buffer will still show
+your tweets without any profile images.  The images will
+show up in time.
+
+The profile images are stored in the directory specified by
+the variable `*twitching-profile-directory*`.  By default,
+it evaluates to `"~/.emacs.d/twitching/thumbnails"`.
+
+### Lack of image support in Windows
+
+By default, Emacs does not ship with support for JPEG, PNG
+or GIF formats.  See the answer to the question "3.3 How do
+I get image support?" in the [Emacs FAQ for
+Windows][EmacsFAQ].
+
+To enable image support on Windows, I have found
+[GnuWin32][GnuWin32] useful.  Install GnuWin32 and add its
+installation path to your `PATH` environment variable.
+Emacs picks it up and images show up properly.
+
 [interviewswithhari]: http://twitter.com/#!/search/%23interviewswithhari "Tweets on Johann Hari's interviewing style"
+[EmacsFAQ]: http://www.gnu.org/software/emacs/windows/Installing-Emacs.html
+[GnuWin32]: http://gnuwin32.sourceforge.net/
