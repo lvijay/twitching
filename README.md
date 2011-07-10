@@ -102,8 +102,8 @@ To get your own `consumer-key` and `consumer-secret`, go to
 <https://dev.twitter.com/apps/new> and register a new
 application.
 
-Select the `"Application Type"` as a **Client** type and
-`"Default Access Type"` as at least **Read & Write**.
+Select the _"Application Type"_ as a **Client** type and
+_"Default Access Type"_ as at least **Read & Write**.
 **Read only** will also work but favoriting tweets will not
 be possible.  Filtering, grouping and other features will
 work.
