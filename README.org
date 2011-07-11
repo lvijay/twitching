@@ -215,7 +215,7 @@ argument as ~C-u~ /n/ ~@~.
 ** Getting a consumer-key and consumer-secret
 
 To get your own ~consumer-key~ and ~consumer-secret~, go to
-<https://dev.twitter.com/apps/new> and register a new
+[[https://dev.twitter.com/apps/new]] and register a new
 application.
 
 Select *Application Type* as *Client* and *Default Access
