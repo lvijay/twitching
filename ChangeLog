@@ -1,5 +1,16 @@
 2011-07-11  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
+	v0.4.3
+
+	* twitching.el: Bug fix in twitching-profile-get-image
+
+	Bug fix to returning profile images.  In some cases,
+	the function `twitching-profile-get-image' was
+	returning :nil causing an error in
+	`twitching-render-region'.
+
+2011-07-11  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
 	* twitching.el: v0.4.2
 
 	Bug fix to `twitching-profile-download-images'.  It

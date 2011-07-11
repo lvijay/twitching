@@ -1261,32 +1261,28 @@ images.")
   "Returns the filename of USER's profile image url as
 stored in the local filesystem.  Returns nil if
 *twitching-profile-use-p* is nil."
-  (if (not *twitching-profile-use-p*) nil
+  (if (not *twitching-profile-use-p*) 'nil
     (let* ((key (twitching-profile-user-key user))
-           (val (gethash key *twitching-profile-user-map*)))
-      (if val
-          val
-        (if (eq val :nil)             ; Emacs cannot display the image
-            nil
-          (prog1
-              ;; if the file exists, just return the file.
-              (let ((image-file (twitching-profile-user-image-file user)))
-                (if (file-exists-p image-file)
-                    (twitching-profile-save-image key image-file)
-                  'nil))
-            (push user *twitching-profile-users-pending*)
-            (when *twitching-profile-timer*
-              (cancel-timer *twitching-profile-timer*))
-            (setq *twitching-profile-timer*
-                  (run-with-idle-timer
-                   30
-                   nil
-                   #'twitching-profile-download-images))))))))
-
-(defun twitching-profile-user-key (user)
-  "Given USER, return the key representation to store in
-`*twitching-profile-user-map*'."
-  (downcase (twitching-user-screen-name user)))
+           (val (twitching-profile-get-saved-image key)))
+      (or
+       val
+       (if (twitching-profile-no-image-p key)
+           'nil
+         ;; This means that the image is not stored in the map
+         (prog1
+             ;; check if the file exists, if it does return the file
+             (let ((image-file (twitching-profile-user-image-file user)))
+               (if (file-exists-p image-file)
+                   (twitching-profile-save-image key image-file)
+                 'nil))
+           (push user *twitching-profile-users-pending*)
+           (when *twitching-profile-timer*
+             (cancel-timer *twitching-profile-timer*))
+           (setq *twitching-profile-timer*
+                 (run-with-idle-timer
+                  30
+                  nil
+                  #'twitching-profile-download-images))))))))
 
 (defun twitching-profile-user-image-file (user)
   "Given the USER, return the file that it would be saved as."
@@ -1330,20 +1326,39 @@ stored in the local filesystem.  Returns nil if
              (url-request-method "GET"))
         (if (not (file-exists-p image-file))
             (url-retrieve url callback cbargs)
-          (if (not (gethash key *twitching-profile-user-map*))
+          (if (not (twitching-profile-get-saved-image key))
               (twitching-profile-save-image key image-file)))))
   ;; start the timer again if there are more items to download
   (if *twitching-profile-users-pending*
       (setq *twitching-profile-timer*
-            (run-at-time "1 min"
+            (run-at-time "20 sec"
                          nil
                          #'twitching-profile-download-images))))
 
+(defun twitching-profile-user-key (user)
+  "Given USER, return the key representation to store in
+`*twitching-profile-user-map*'."
+  (downcase (twitching-user-screen-name user)))
+
+(defun twitching-profile-get-saved-image (key)
+  "Gets KEY in `*twitching-profile-user-map*'."
+  (if (not (stringp key)) (error "%s is not a valid key."))
+  (let ((val (gethash key *twitching-profile-user-map*)))
+    (if (eq val :no-image-p)
+        nil
+      val)))
+
 (defun twitching-profile-save-image (key image-file)
-  "Saves IMAGE-FILE in the `*twitching-profile-user-map*'."
+  "Saves IMAGE-FILE in `*twitching-profile-user-map*' under KEY."
   (let* ((image (ignore-errors (create-image image-file)))
-         (image (or image :nil)))
-    (puthash key image *twitching-profile-user-map*)))
+         (value (or image :no-image-p)))
+    (puthash key value *twitching-profile-user-map*)
+    image))
+
+(defun twitching-profile-no-image-p (key)
+  "Returns t if the image represented by KEY exists but cannot be
+shown by Emacs; nil otherwise."
+  (eq (gethash key *twitching-profile-user-map*) :no-image-p))
 
 
 ;;; General utility functions that should probably be elsewhere.
