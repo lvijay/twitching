@@ -24,9 +24,9 @@ Twitching was written with two primary goals in mind:
 4. Filters -- probably the best feature of twitching.  If
    you're really irritated that all your tweets have
    something annoying like ~#RoyalWedding~, set up a filter
-   that will remove all tweets with that hashtag and your
-   Twitter feed is clean.  Filters are persistent so future
-   tweets that match will also be filtered away.
+   on that hashtag and your Twitter feed is cleared of all
+   tweets with it.  Filters are persistent so future tweets
+   that match will also be filtered away.
 
 5. Remove -- Same as filters but without persistence.
 
@@ -69,7 +69,7 @@ upcoming features.
 
 Before you use twitching, you must have a Twitter consumer
 token and consumer token secret.  If you don't already have
-one, see the below section on [[Getting a consumer-key and
+one, see the section below on [[Getting a consumer-key and
 consumer-secret]] for details.
 
 ** Installation
@@ -122,13 +122,27 @@ start it again for the new interval to take effect.
 
 The timer interval can be stopped by =M-x twitching-stop=.
 
-Twitching will first ask you to enter your consumer key and
-consumer secret.  (See below for details on getting these.)
-After this, twitching will open up a browser window which
-will ask you to enter your username and password.  Enter it
-and authorize your app.  After this, you will be shown a 7
-digit number on the browser.  Enter this at the Emacs
-minibuffer.
+*** Startup
+
+The first time that you start twitching, it will first ask
+you to enter your Twitter consumer key and Twitter consumer
+secret.  (See below for details on getting these.)  After
+this, twitching will open up a browser window which will ask
+you to enter your username and password.  Enter it and
+authorize your app.  After this, you will be shown a 7 digit
+number on the browser.  Enter this at the Emacs minibuffer
+and your tweets will get downloaded.
+
+This will happen only the first time that twitching starts.
+
+If you want to stop entering the consumer key and consumer
+secret each time that you start Emacs, you can add them to
+your start up script using the following commands
+
+#+BEGIN_SRC emacs-lisp
+(setq *twitching-api-consumer-key* "YOUR CONSUMER KEY"
+      *twitching-api-consumer-secret* "YOUR CONSUMER SECRET")
+#+END_SRC
 
 ** Using twitching
 
@@ -137,19 +151,25 @@ minibuffer.
 You can go to the next tweet by using any of the following
 keys: ~C-n~, ~n~, down-arrow or ~j~.  To nagivate to the
 previous tweet, you can use any of the keys: ~C-p~, ~p~,
-up-arrow or ~k~.  These commands support prefix arguments.
+up-arrow or ~k~.  These commands support prefix arguments,
+so ~C-u 5 j~ will move down five tweets.
 
-To scroll down a page, you can use ~C-v~, SPC or PageDown.
-You can scroll up a page using ~M-v~, Backspace, or PageUp. [fn:pageup]
+To scroll down a page, you can use ~C-v~, SPC or Page Down.
+You can scroll up a page using ~M-v~, Backspace, or Page Up.
 
-[fn:pageup] Emacs defines two commands ~scroll-up~ and
-~scroll-down~ which do the inverse of what PageUp and
-PageDown do.  I use the common meanings of PageUp and
-PageDown, not the Emacs definitions.
+(Quick note: Emacs defines two commands ~scroll-up~ and
+~scroll-down~ which do the exact inverse of what Page Up and
+Page Down do.  For Emacs, the command ~scroll-up~ scrolls
+/contents/ up but Page Up scrolls the cursor up.  Here the
+terms "scroll up" and "scroll down", refer to the common
+meanings associated with Page Up and Page Down
+respectively.)
 
-As opposed to Twitter's web interface, where newer tweets
-are shown above older ones, in twitching the older tweets
-are shown first and new tweets get appended to the buffer.
+**** Difference with Twitter Web interface
+
+In Twitter's web interface, newer tweets are shown above
+older ones.  In twitching older tweets are shown first with
+new ones appended to the buffer.
 
 *** Favoriting
 
@@ -157,6 +177,40 @@ Tweets can be favorited by typing ~s~ on a tweet.  If a
 tweet is favorited, it will have a star shown next to it.
 If ~s~ is pressed on an already favorited tweet, twitching
 will unfavorite the tweet.
+
+*** Favorited tweets
+
+To view all your favorited tweets, uses the command
+~twitching-show-favorites~.  Upon invocation, your favorite
+tweets are downloaded and shown in the buffer ~*Favorite
+Tweets*~.  With a prefix argument, the command switches to
+the buffer immediately after it has been rendered.
+
+*** Opening links, hashtags and mentions
+
+**** Opening urls
+
+To open a link on a tweet, move point to it and press ~o~.
+If there are multiple links in a tweet they can be opened
+with a prefix argument.  For instance, to open the 3rd link
+in a tweet, type ~C-u 3 o~ or, more simply, ~C-3 o~.
+
+To open all links in a tweet, simply type ~O~.  The links
+will open up in your default browser.
+
+**** Opening hashtags
+
+Opening hashtags work the same way as opening links.  To
+open the first hashtag in a tweet, use the key binding ~#~
+and to open the /nth/ hashtag, use a prefix argument as
+~C-u~ /n/ ~#~.
+
+**** Opening user mentions
+
+Opening user mentions work the same way as opening links.
+To open the first user mention in a tweet, use the key
+binding ~@~ and to open the /nth/ hashtag, use a prefix
+argument as ~C-u~ /n/ ~@~.
 
 ** Getting a consumer-key and consumer-secret
 
@@ -183,10 +237,6 @@ To enable display of user profile pictures along with their
 tweets, add the following line to your ~.emacs~ file after
 the customizations mentioned in the section [[Usage]].
 
-#+BEGIN_SRC emacs-lisp
-;;; Show user's profile pictures with their tweets.
-(setq *twitching-profile-use-p* t)
-#+END_SRC
 
 Twitching will lazily download the user profile images and
 store them in your filesystem.  So immediately after
