@@ -144,9 +144,7 @@ your start up script using the following commands
       *twitching-api-consumer-secret* "YOUR CONSUMER SECRET")
 #+END_SRC
 
-** Using twitching
-
-*** Navigation
+** Navigation
 
 You can go to the next tweet by using any of the following
 keys: ~C-n~, ~n~, down-arrow or ~j~.  To nagivate to the
@@ -165,20 +163,20 @@ terms "scroll up" and "scroll down", refer to the common
 meanings associated with Page Up and Page Down
 respectively.)
 
-**** Difference with Twitter Web interface
+*** Difference with Twitter Web interface
 
 In Twitter's web interface, newer tweets are shown above
 older ones.  In twitching older tweets are shown first with
 new ones appended to the buffer.
 
-*** Favoriting
+** Favoriting
 
 Tweets can be favorited by typing ~s~ on a tweet.  If a
 tweet is favorited, it will have a star shown next to it.
 If ~s~ is pressed on an already favorited tweet, twitching
 will unfavorite the tweet.
 
-*** Favorited tweets
+** Favorited tweets
 
 To view all your favorited tweets, uses the command
 ~twitching-show-favorites~.  Upon invocation, your favorite
@@ -186,9 +184,9 @@ tweets are downloaded and shown in the buffer ~*Favorite
 Tweets*~.  With a prefix argument, the command switches to
 the buffer immediately after it has been rendered.
 
-*** Opening links, hashtags and mentions
+** Opening links, hashtags and mentions
 
-**** Opening urls
+*** Opening urls
 
 To open a link on a tweet, move point to it and press ~o~.
 If there are multiple links in a tweet they can be opened
@@ -198,14 +196,14 @@ in a tweet, type ~C-u 3 o~ or, more simply, ~C-3 o~.
 To open all links in a tweet, simply type ~O~.  The links
 will open up in your default browser.
 
-**** Opening hashtags
+*** Opening hashtags
 
 Opening hashtags work the same way as opening links.  To
 open the first hashtag in a tweet, use the key binding ~#~
 and to open the /nth/ hashtag, use a prefix argument as
 ~C-u~ /n/ ~#~.
 
-**** Opening user mentions
+*** Opening user mentions
 
 Opening user mentions work the same way as opening links.
 To open the first user mention in a tweet, use the key
