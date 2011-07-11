@@ -333,25 +333,25 @@ not need filtering."
                (line1 (twitching-decorate-title-text status))
                (line2 (twitching-decorate-status-text status))
                (newline *twitching-newline*)
-               (buf-start (+ start read-start))
-               (buf-end (+ start read-end))
+               (twt-start (+ start read-start))
+               (twt-end (+ start read-end))
                display)
-          (set-text-properties buf-start buf-end nil)
-          (put-text-property buf-start buf-end 'tweet status)
+          (set-text-properties twt-start twt-end nil)
+          (put-text-property twt-start twt-end 'tweet status)
           (if (consp line1)
               (let ((image (car line1))
                      (line1 (cdr line1))
-                     (mid-point (1+ buf-start)))
+                     (mid-point (1+ twt-start)))
                 ;; mid-point should be understood as a point in the
-                ;; midst of buf-start and buf-end; not, as its name
-                ;; suggests, the point at the center of buf-start and
-                ;; buf-end.
+                ;; midst of twt-start and twt-end; not, as its name
+                ;; suggests, the point at the center of twt-start and
+                ;; twt-end.
                 (setq display (concat line1 newline line2 newline))
-                (put-text-property buf-start mid-point 'display image)
-                (put-text-property mid-point buf-end 'display display))
+                (put-text-property twt-start mid-point 'display image)
+                (put-text-property mid-point twt-end 'display display))
             (progn
               (setq display (concat line1 newline line2 newline))
-              (put-text-property buf-start buf-end 'display display)))
+              (put-text-property twt-start twt-end 'display display)))
           (setq read-start read-end))))))
 
 (defun twitching-decorate-title-text (status)
