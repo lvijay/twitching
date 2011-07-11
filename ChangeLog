@@ -1,3 +1,13 @@
+2011-07-11  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	* twitching.el: v0.4.2
+
+	Bug fix to `twitching-profile-download-images'.  It
+	was using the Emacs 24 version of `url-retrieve'
+	that accepts a parameter SILENT.  This is not the
+	case in Emacs 23.  The fix is to revert to using the
+	Emacs 23 version of `url-retrieve'.
+
 Sun Jul 10 14:03:59 2011  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	* twitching.el: v0.4.1

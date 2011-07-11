@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.4.1
+;;; Version: 0.4.2
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -1324,10 +1324,9 @@ stored in the local filesystem.  Returns nil if
                         (twitching-profile-save-image key image-file)))
                   (kill-buffer))))
              (cbargs (list image-file key))
-             (silent 't)
              (url-request-method "GET"))
         (if (not (file-exists-p image-file))
-            (url-retrieve url callback cbargs silent)
+            (url-retrieve url callback cbargs)
           (if (not (gethash key *twitching-profile-user-map*))
               (twitching-profile-save-image key image-file)))))
   ;; start the timer again if there are more items to download
