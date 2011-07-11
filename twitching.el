@@ -1227,7 +1227,7 @@ return the response as a string."
     params))
 
 
-;;; Profile thumbnails
+;;; Profile Images management
 (defvar *twitching-profile-use-p* 'nil
   "Setq this to t to enable display of user profile pics with
 tweets.")
@@ -1251,6 +1251,9 @@ tweets.")
 images.")
 
 (defvar *twitching-profile-user-map*
+  ;; I follow around 138 people and 179 is a close enough prime that
+  ;; with a rehash-threshold of 0.8 matches the number of people I
+  ;; follow.  Feel free to modify it to suit your own needs.
   (make-hash-table :test 'equal :weakness nil :size 179)
   "Map of user profiles and their locations in the filesystem.")
 
