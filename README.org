@@ -235,7 +235,6 @@ To enable display of user profile pictures along with their
 tweets, add the following line to your ~.emacs~ file after
 the customizations mentioned in the section [[Usage]].
 
-
 Twitching will lazily download the user profile images and
 store them in your filesystem.  So immediately after
 enabling this feature, your twitching buffer will still show
@@ -253,9 +252,26 @@ or GIF formats.  See the answer to the question "3.3 How do
 I get image support?" in the [[http://www.gnu.org/software/emacs/windows/Installing-Emacs.html][Emacs FAQ for Windows]].
 
 To enable image support on Windows, I have found [[http://gnuwin32.sourceforge.net/][GnuWin32]]
-useful.  Install GnuWin32 and add its installation path to
-your ~PATH~ environment variable.  Emacs picks it up and
-images show up properly.
+useful.  I downloaded the following packages
+
+    - [[http://gnuwin32.sourceforge.net/packages/giflib.htm][GifLib]] -- support for GIF files
+    - [[http://gnuwin32.sourceforge.net/packages/jpeg.htm][Jpeg]] -- support for JPEG files
+    - [[http://gnuwin32.sourceforge.net/packages/libpng.htm][LibPng]] -- support for PNG files.  This has a
+      dependency on ZLib.  The page has a link to its
+      dependencies.
+
+Extracted the contents of the above packages and place them
+in your ~EMACS_HOME/bin~ folder.  The next time you start a
+new instance of Emacs, it should have support to display
+images.
+
+To check if your Emacs supports images, you can run the
+following from Emacs.  Type =M-:= and paste the following in
+the minibuffer =(image-type-available-p 'jpeg)=.  If you see
+a ~t~ printed, it means you have support to display JPEG
+files.  The corresponding commands for GIF and PNG are
+=(image-type-available-p 'gif)= and =(image-type-available-p
+'png)= respectively.
 
 * License
 
