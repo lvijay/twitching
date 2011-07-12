@@ -426,8 +426,7 @@ associated with the account."
          (mentions (funcall fn mentions 'mention))
          (urls (funcall fn urls 'url))
          (indices (sort (append hashtags mentions urls)
-                        (lambda (idx1 idx2)
-                          (< (second idx1) (second idx2)))))
+                        (lambda (idx1 idx2) (< (second idx1) (second idx2)))))
          (max (length text))
          (ci 0)
          result)
@@ -444,8 +443,11 @@ associated with the account."
                       (propertize txt 'category (cdr-assoc type properties))))
                   (reverse result)))
     (with-temp-buffer
+      (text-mode)
       (insert (apply #'concat result))
-      (let ((fill-column *twitching-fill-column*))
+      (let ((fill-column *twitching-fill-column*)
+            (sentence-end-double-space 'nil)
+            (use-hard-newlines 'nil))
         (fill-region (point-min) (point-max)))
       (buffer-string))))
 
