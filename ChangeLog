@@ -1,3 +1,12 @@
+Tue Jul 12 23:51:33 2011  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	v0.5.0
+
+	* twitching.el: old look in new code.  Based upon
+	feedback, reverted back to the display options as
+	used in v0.4.2 but using the code refactorings that
+	happened after.
+
 2011-07-12  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	v0.4.4

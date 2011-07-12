@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.4.4
+;;; Version: 0.5.0
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -311,7 +311,7 @@ takes one argument and returns the object representation."
 (defvar *twitching-newline*
   (propertize "\n" 'category '*twitching-newline-category*))
 
-(defvar *twitching-fill-column* 60 "Set this to manipulate `fill-column'.")
+(defvar *twitching-fill-column* 70 "Set this to manipulate `fill-column'.")
 
 (defun twitching-render-region (start end buffer)
   "Renders the region in START and END in BUFFER.  Reads
@@ -340,38 +340,12 @@ not need filtering."
 (defun twitching-render-tweet (tweet start end)
   (destructuring-bind (image title-text tweet-text)
       (twitching-rendering-components tweet)
-    (if image
-        (twitching-render-with-image image title-text tweet-text start end)
-      (twitching-render-without-image title-text tweet-text start end))))
-
-(defun twitching-render-with-image (image title-text tweet-text start end)
-  (let* ((nl *twitching-newline*)
-         (tweet-lines (split-string tweet-text "[\r\n]" t))
-         (tweet-lines (mapcar (lambda (line) (concat " " line nl)) tweet-lines))
-         (length (length tweet-lines)))
-    (put-text-property start (incf start) 'display (concat title-text nl))
-    (if (= length 1)
-        (progn
-          (put-text-property start (incf start) 'display image)
-          (put-text-property start end 'display (concat tweet-text nl)))
-     (progn           ; tweet spans more than a line.  split the image
-       (add-text-properties start (incf start)
-                            `(display ((slice 0.0 0.0 1.0 0.5) ,image)))
-       (put-text-property start (incf start) 'display (pop tweet-lines))
-       (add-text-properties start (incf start)
-                            `(display ((slice 0.0 0.5 1.0 0.5) ,image)))
-       (if (= length 2)
-           (put-text-property start end 'display (pop tweet-lines))
-         (progn
-           (dolist (line (butlast tweet-lines))
-             (put-text-property start (incf start) 'display line))
-           (put-text-property start end 'display (car (last tweet-lines)))))))))
-
-(defun twitching-render-without-image (title-text tweet-text start end)
-  (let ((mid-point (1+ start))
-        (nl *twitching-newline*))
-    (put-text-property start mid-point 'display (concat title-text nl))
-    (put-text-property mid-point end 'display (concat tweet-text nl))))
+    (let* ((nl *twitching-newline*))
+      (when image
+        (put-text-property start (incf start) 'display image)
+        (setq title-text (concat " " title-text)))
+      (put-text-property start (incf start) 'display (concat title-text nl))
+      (put-text-property start end 'display (concat tweet-text nl)))))
 
 (defun twitching-rendering-components (status)
   "Return a list of (IMAGE TITLE-TEXT STATUS-TEXT).
