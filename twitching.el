@@ -311,7 +311,7 @@ takes one argument and returns the object representation."
 (defvar *twitching-newline*
   (propertize "\n" 'category '*twitching-newline-category*))
 
-(defvar *twitching-fill-column* 70 "Set this to manipulate `fill-column'.")
+(defvar *twitching-fill-column* 60 "Set this to manipulate `fill-column'.")
 
 (defun twitching-render-region (start end buffer)
   "Renders the region in START and END in BUFFER.  Reads
@@ -330,55 +330,84 @@ not need filtering."
       (while (ignore-errors (setq result (read-from-string s read-start)))
         (let* ((status (car result))
                (read-end (cdr result))
-               (line1 (twitching-decorate-title-text status))
-               (line2 (twitching-decorate-status-text status))
-               (newline *twitching-newline*)
                (twt-start (+ start read-start))
-               (twt-end (+ start read-end))
-               display)
+               (twt-end (+ start read-end)))
           (set-text-properties twt-start twt-end nil)
           (put-text-property twt-start twt-end 'tweet status)
-          (if (consp line1)
-              (let ((image (car line1))
-                     (line1 (cdr line1))
-                     (mid-point (1+ twt-start)))
-                ;; mid-point should be understood as a point in the
-                ;; midst of twt-start and twt-end; not, as its name
-                ;; suggests, the point at the center of twt-start and
-                ;; twt-end.
-                (setq display (concat line1 newline line2 newline))
-                (put-text-property twt-start mid-point 'display image)
-                (put-text-property mid-point twt-end 'display display))
-            (progn
-              (setq display (concat line1 newline line2 newline))
-              (put-text-property twt-start twt-end 'display display)))
+          (twitching-render-tweet status twt-start twt-end)
           (setq read-start read-end))))))
 
+(defun twitching-render-tweet (tweet start end)
+  (destructuring-bind (image title-text tweet-text)
+      (twitching-rendering-components tweet)
+    (if image
+        (twitching-render-with-image image title-text tweet-text start end)
+      (twitching-render-without-image title-text tweet-text start end))))
+
+(defun twitching-render-with-image (image title-text tweet-text start end)
+  (let* ((nl *twitching-newline*)
+         (tweet-lines (split-string tweet-text "[\r\n]" t))
+         (tweet-lines (mapcar (lambda (line) (concat " " line nl)) tweet-lines))
+         (length (length tweet-lines)))
+    (put-text-property start (incf start) 'display (concat title-text nl))
+    (if (= length 1)
+        (progn
+          (put-text-property start (incf start) 'display image)
+          (put-text-property start end 'display (concat tweet-text nl)))
+     (progn           ; tweet spans more than a line.  split the image
+       (add-text-properties start (incf start)
+                            `(display ((slice 0.0 0.0 1.0 0.5) ,image)))
+       (put-text-property start (incf start) 'display (pop tweet-lines))
+       (add-text-properties start (incf start)
+                            `(display ((slice 0.0 0.5 1.0 0.5) ,image)))
+       (if (= length 2)
+           (put-text-property start end 'display (pop tweet-lines))
+         (progn
+           (dolist (line (butlast tweet-lines))
+             (put-text-property start (incf start) 'display line))
+           (put-text-property start end 'display (car (last tweet-lines)))))))))
+
+(defun twitching-render-without-image (title-text tweet-text start end)
+  (let ((mid-point (1+ start))
+        (nl *twitching-newline*))
+    (put-text-property start mid-point 'display (concat title-text nl))
+    (put-text-property mid-point end 'display (concat tweet-text nl))))
+
+(defun twitching-rendering-components (status)
+  "Return a list of (IMAGE TITLE-TEXT STATUS-TEXT).
+
+IMAGE is the image associated with STATUS, it is nil if the image
+cannot be displayed.  This could be because Emacs cannot display
+the image type or because the user does not have any image
+associated with the account."
+  (let* ((user (twitching-status-user status))
+         (image (twitching-profile-get-image user))
+         (title-text (twitching-decorate-title-text status))
+         (tweet-text (twitching-decorate-status-text status)))
+    (list image title-text tweet-text)))
+
 (defun twitching-decorate-title-text (status)
-  (let* ((created-at (twitching-status-created-at status))
+  (let* ((user (twitching-status-user status))
+         (screen-name (twitching-user-screen-name user))
+         (screen-name (propertize screen-name
+                         'category '*twitching-screen-name-category*))
+         (user-name (twitching-user-name user))
+         (user-name (propertize screen-name
+                         'category '*twitching-user-name-category*))
+         (created-at (twitching-status-created-at status))
          (created-at (format-time-string "%a %b %d %H:%M:%S %z %Y"
                                          (date-to-time created-at)))
-         (user (twitching-status-user status))
-         (screen-name (twitching-user-screen-name user))
-         (image (twitching-profile-get-image user))
-         (user-name (twitching-user-name user))
+         (created-at (propertize created-at
+                         'category '*twitching-timestamp-category*))
          (favoritedp (twitching-status-favoritedp status))
          (retweetedp (twitching-status-retweetedp status))
          (sep *twitching-separator*)
-         (screen-name (propertize screen-name
-                                  'category '*twitching-screen-name-category*))
-         (user-name (propertize user-name
-                                'category '*twitching-user-name-category*))
-         (created-at (propertize created-at
-                                 'category '*twitching-timestamp-category*))
-         (line (if image
-                   (concat sep user-name sep created-at)
-                 (concat screen-name sep user-name sep created-at))))
-    (when favoritedp (setq line (concat line *twitching-star*)))
-    (when retweetedp (setq line (concat *twitching-retweet* sep line)))
-    (if image
-        (cons image line)
-      line)))
+         (star *twitching-star*)
+         (retweet *twitching-retweet*)
+         (text (concat screen-name sep user-name sep created-at)))
+    (when favoritedp (setq text (concat text star)))
+    (when retweetedp (setq text (concat text sep retweet)))
+    text))
 
 (defun twitching-decorate-status-text (status)
   "Decorates the status text."

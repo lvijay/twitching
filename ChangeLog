@@ -1,3 +1,15 @@
+2011-07-12  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	v0.4.4
+
+	* twitching.el: Improvements to image display.  Slice
+	the image and show it on two lines if the tweet text
+	spans more than one line.
+
+	Sometimes there is a split in the images when this
+	happens.  This may not be fixable as it depends upon
+	Emacs's image rendering and the image size itself.
+
 2011-07-11  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	v0.4.3
