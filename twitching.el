@@ -392,7 +392,7 @@ associated with the account."
          (screen-name (propertize screen-name
                          'category '*twitching-screen-name-category*))
          (user-name (twitching-user-name user))
-         (user-name (propertize screen-name
+         (user-name (propertize user-name
                          'category '*twitching-user-name-category*))
          (created-at (twitching-status-created-at status))
          (created-at (format-time-string "%a %b %d %H:%M:%S %z %Y"
