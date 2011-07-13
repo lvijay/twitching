@@ -802,12 +802,7 @@ POINT."
                  (filter (make-twitching-filter :documentation doc
                                                 :action fn
                                                 :args (list hashtag))))
-            (when (y-or-n-p (concat "Create new filter on #" ht-raw "? "))
-              (push filter *twitching-filters*)
-              (twitching-render-region (point-min)
-                                       (point-max)
-                                       (current-buffer))
-              (goto-char (min point (point-max)))))
+            (twitching-filter--action (concat "#" ht-raw) filter point))
         (error "No hashtag in tweet.")))))
 
 (defun twitching-filter-user (n point)
@@ -825,18 +820,12 @@ filters the user that has made the tweet."
                (key 'screen_name))
           (setq mention (twitching-get-nth-entity tweet elem-fn key n))))
       (if mention
-          (when (y-or-n-p (concat "Create new filter on @" mention "? "))
-            (let* ((username (twitching-filter-escape mention))
-                   (doc (concat "Filter @" mention))
-                   (filter (make-twitching-filter :documentation doc
-                                                  :action fn
-                                                  :args (list username))))
-              (push filter *twitching-filters*)
-              (twitching-render-region (point-min)
-                                       (point-max)
-                                       (current-buffer))
-              (goto-char (min point (point-max)))
-              (message (concat "Filtered buffer for @" mention))))
+          (let* ((username (twitching-filter-escape mention))
+                 (doc (concat "Filter @" mention))
+                 (filter (make-twitching-filter :documentation doc
+                                                :action fn
+                                                :args (list username))))
+            (twitching-filter--action (concat "@" mention) filter point))
         (error "No mention in tweet.")))))
 
 (defun twitching-filter-word (word)
@@ -852,12 +841,15 @@ filters the user that has made the tweet."
          (filter (make-twitching-filter :documentation doc
                                         :action fn
                                         :args (list word))))
-    (when (y-or-n-p (concat "Create new filter on " werd "? "))
-      (push filter *twitching-filters*)
-      (twitching-render-region (point-min)
-                               (point-max)
-                               (current-buffer))
-      (goto-char (min point (point-max))))))
+    (twitching-filter--action werd filter point)))
+
+(defun twitching-filter--action (doc filter point)
+  "Common function for all filtering."
+  (when (y-or-n-p (concat "Create new filter on " doc "? "))
+    (push filter *twitching-filters*)
+    (twitching-render-region (point-min) (point-max) (current-buffer))
+    (goto-char (min point (point-max)))
+    (message "Filtered buffer for %s" doc)))
 
 (defun do-twitching-filter-mention (tweet mention)
   (let* ((entities (twitching-status-entities tweet))
