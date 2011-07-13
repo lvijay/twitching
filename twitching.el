@@ -610,7 +610,7 @@ tweet'."
         finally return 'nil))
 
 (defun invoke-twitching-filter (filter tweet)
-  "Returns t if FILTER filters TWEET, nil otherwise."
+  "Return t if FILTER filters TWEET, nil otherwise."
   (apply (twitching-filter-action filter) tweet (twitching-filter-args filter)))
 
 (defun twitching-filter-escape (word)
