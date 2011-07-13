@@ -807,14 +807,14 @@ POINT.  Counting starts at 1.  With a prefix argument of 0,
 filters the user that has made the tweet."
   (interactive "p\nd")
   (with-tweet-under-point tweet (point)
-    (let* (mention
+    (let* ((mention (if (= n 0)
+                        (twitching-user-screen-name
+                         (twitching-status-user tweet))
+                      (twitching-get-nth-entity tweet
+                                                #'twitching-entity-mentions
+                                                'screen_name
+                                                n)))
            (fn #'do-twitching-filter-mention))
-      (if (= n 0)
-          (setq mention (twitching-user-screen-name
-                         (twitching-status-user tweet)))
-        (let* ((elem-fn #'twitching-entity-mentions)
-               (key 'screen_name))
-          (setq mention (twitching-get-nth-entity tweet elem-fn key n))))
       (if mention
           (let* ((username (twitching-filter-escape mention))
                  (doc (concat "Filter @" mention))
