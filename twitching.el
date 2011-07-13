@@ -663,10 +663,6 @@ return the remaining text."
     (twitching-api-star-tweet tweet)
     (twitching-rerender-tweet tweet point)))
 
-(defun twitching-create-filter ()
-  "Create a twitter filter."
-  (interactive))
-
 (defun twitching-open-link (n)
   "Open the N th url in tweet.  Ignored if tweet has no urls.
 Counting starts at 1."
