@@ -55,3 +55,8 @@ way.
 
   The only pending task here is to actually write the buffer
   to a file and clear the buffer out periodically.
+
+6. Manage people followed
+
+  I often find myself going to twitter.com to review the
+  people I follow and unfollow some of them.
