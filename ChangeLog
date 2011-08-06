@@ -1,3 +1,11 @@
+2011-08-06  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	v0.6.0
+
+	* twitching.el: refactored commands
+	`twitching-to-get-my-tweets' and `twitching-stop' to
+	`start-twitching' and `stop-twitching' respectively.
+
 Tue Jul 12 23:51:33 2011  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	v0.5.0

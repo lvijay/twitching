@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.5.0
+;;; Version: 0.6.0
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -62,7 +62,7 @@
 timeline.")
 
 ;;;###autoload
-(defun twitching-to-get-my-tweets ()
+(defun start-twitching ()
   "Start timer to fetch home timeline."
   (interactive)
   (twitching-api-check-keys)
@@ -76,7 +76,7 @@ timeline.")
                             nil)))))
 
 ;;;###autoload
-(defun twitching-stop ()
+(defun stop-twitching ()
   "Stop the timer that fetches tweets."
   (interactive)
   (if *twitching-timer*

@@ -83,7 +83,7 @@ Add the below lines to your ~.emacs~ file.
 #+BEGIN_SRC emacs-lisp
 ;;; Twitter mode in Emacs
 (add-to-list 'load-path "/path/to/twitching")
-(autoload 'twitching-to-get-my-tweets "twitching" "Start Twitching timer" t)
+(autoload 'start-twitching "twitching" "Start Twitching timer" t)
 (autoload 'twitching-show-favorites "twitching" "show favorite tweets" t)
 (autoload 'twitching-home-timeline-get "twitching" "Get Twitter home page" t)
 #+END_SRC
@@ -101,14 +101,14 @@ Your tweets will be shown in the buffer ~*Twitching*~.
 *** Periodically downloading tweets
 
 To periodically fetch your tweets type =M-x
-twitching-to-get-my-tweets=.  This will start a timer that
+start-twitching=.  This will start a timer that
 downloads your tweets periodically and put them in the
 buffer ~*Twitching*~.  
 
-The default value of this timer is set to 5 minutes, but it
+The default value of this timer is set to run every 5 minutes, but it
 can be customized by changing the value of
-=*twitching-timer-interval*=.  Simply add the following line
-to your ~.emacs~ file.
+=*twitching-timer-interval*=.  Simply add the following line to your
+~.emacs~ file.
 
 #+BEGIN_SRC emacs-lisp
 (setq *twitching-timer-interval* SECONDS)
@@ -120,7 +120,7 @@ start it again for the new interval to take effect.
 
 **** Stopping the timer
 
-The timer interval can be stopped by =M-x twitching-stop=.
+=M-x stop-twitching= stops the timer.
 
 *** Startup
 
