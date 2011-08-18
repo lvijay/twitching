@@ -238,6 +238,21 @@ BODY is not executed if the response is in error."
                            (kill-buffer)))
                        (list .,values))))))
 
+(defmacro* with-twitching-url-retrieve ((url method &optional params)
+                                        (response &rest argnames-values)
+                                        &body body)
+  (declare (indent 2))
+  (let ((urll (gensym "url"))
+        (req (gensym "request"))
+        (meth (gensym "method"))
+        (hdrs (gensym "headers")))
+    `(let* ((,urll (twitching-api-form-url ,url ,params))
+            (,meth ,method)
+            (,req (make-api-twitching-oauth-request ,urll ,meth))
+            (,hdrs (oauth-request-to-header ,req)))
+       (with-url-retrieve (,urll ,meth ,hdrs) (,response .,argnames-values)
+         .,body))))
+
 
 ;;; struct definitions
 ;; Defines a twitter-user
