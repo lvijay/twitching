@@ -235,6 +235,10 @@ To enable display of user profile pictures along with their
 tweets, add the following line to your ~.emacs~ file after
 the customizations mentioned in the section [[Usage]].
 
+#+BEGIN_SRC emacs-lisp
+(setq *twitching-profile-use-p* t)
+#+END_SRC
+
 Twitching will lazily download the user profile images and
 store them in your filesystem.  So immediately after
 enabling this feature, your twitching buffer will still show
