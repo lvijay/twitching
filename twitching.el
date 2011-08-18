@@ -241,6 +241,23 @@ BODY is not executed if the response is in error."
 (defmacro* with-twitching-url-retrieve ((url method &optional params)
                                         (response &rest argnames-values)
                                         &body body)
+  "`with-url-retrieve' equivalent for making Twitter API calls.
+
+URL is the url to fetch using METHOD.  HEADERS is an alist
+of (HEADER-NAME . HEADER-VALUE) pairs where both the values are
+strings.
+
+RESPONSE is the variable that will hold the response string,
+including HTTP headers.
+
+ARGNAMES-VALUES is the list of arguments that will be used when
+the HTTP response is received.  Each can be specified either as a
+list of (VARIABLE-NAME VALUE-FORM) or just a symbol
+VARIABLE-NAME.  If the first syntax is used then VALUE-FORM is
+evaluated and bound to VARIABLE-NAME.  If only a symbol is
+provided then the value is taken from the enclosing scope.
+
+BODY is not executed if the response is in error."
   (declare (indent 2))
   (let ((urll (gensym "url"))
         (req (gensym "request"))
@@ -573,21 +590,22 @@ tweet'."
     ;; n-s-p-c and p-s-p-c are `next-single-property-change' and
     ;; `previous-single-property-change' respectively.
     (if (twitching-status-p tweet)
-        (let* ((point-max (point-max))
-               (a (previous-single-property-change p 'tweet buffer (point-min)))
-               (prev-tweet (get-text-property a 'tweet buffer))
-               ;; If p was in the middle of a tweet when this function
-               ;; is called, a evalutes to lb which is wrong.
-               ;; Reevaluate a
-               (a (if (eq tweet prev-tweet)
-                      (previous-single-property-change a 'tweet buffer)
-                    a))
-               (lb (if a
-                       (next-single-property-change a 'tweet buffer point-max)
-                     (point-min)))
-               (ub (next-single-property-change p 'tweet buffer
-                                                point-max)))
-          (list a lb ub))
+        (with-current-buffer buffer
+          (let* ((point-max (point-max))
+                 (point-min (point-min))
+                 (a (previous-single-property-change p 'tweet nil point-min))
+                 (prev-tweet (get-text-property a 'tweet))
+                 ;; If p was in the middle of a tweet when this function
+                 ;; is called, a evalutes to lb which is wrong.
+                 ;; Reevaluate a
+                 (a (if (eq tweet prev-tweet)
+                        (previous-single-property-change a 'tweet)
+                      a))
+                 (lb (if a
+                         (next-single-property-change a 'tweet nil point-max)
+                       (point-min)))
+                 (ub (next-single-property-change p 'tweet nil point-max)))
+            (list a lb ub)))
       'nil)))
 
 
@@ -734,8 +752,25 @@ return the remaining text."
   "Favorite or unfavorite the tweet at POINT."
   (interactive "d")
   (with-tweet-under-point tweet (point)
-    (twitching-api-star-tweet tweet)
-    (twitching-rerender-tweet tweet point)))
+    (let* ((favoritedp (twitching-status-favoritedp tweet))
+           (id (twitching-status-id tweet))
+           (url (concat "http://api.twitter.com/1/favorites"
+                        (if favoritedp "/destroy/" "/create/")
+                        id
+                        ".json")))
+      (with-twitching-url-retrieve (url "POST")
+          (response tweet point (buffer (current-buffer)))
+        (when (twitching-api-request-success-p response)
+          (let ((json-false 'nil))
+            (let* ((body (http-extract-response-body response))
+                   (status (json-read-from-string body))
+                   (new-tweet (new-twitching-status status)))
+              ;; Because we don't set "include_entities=1" in this request,
+              ;; they aren't sent by twitter.  So we set the favorited
+              ;; status manually.
+              (setf (twitching-status-favoritedp tweet)
+                    (not (twitching-status-favoritedp tweet)))
+              (twitching-rerender-tweet tweet point buffer))))))))
 
 (defun twitching-open-link (n)
   "Open the N th url in tweet.  Ignored if tweet has no urls.
@@ -1207,27 +1242,6 @@ is GET."
             (json-array-type 'list))
         (let ((statuses (json-read-from-string response-body)))
           (mapcar #'new-twitching-status statuses))))))
-
-(defun twitching-api-star-tweet (tweet)
-  "Favorite or Unfavorite TWEET depending upon its favorited status."
-  (let* ((favoritedp (twitching-status-favoritedp tweet))
-         (id (twitching-status-id tweet))
-         (url (concat "http://api.twitter.com/1/favorites"
-                      (if favoritedp "/destroy/" "/create/")
-                      id
-                      ".json"))
-         (json-false 'nil)
-         (response (twitching-api-oauth-get-http-response url nil "POST")))
-    (when (twitching-api-request-success-p response)
-      (let* ((body (http-extract-response-body response))
-             (status (json-read-from-string body))
-             (new-tweet (new-twitching-status status)))
-        ;; Because we don't set "include_entities=1" in this request,
-        ;; they aren't sent by twitter.  So we set the favorited
-        ;; status manually.
-        (setf (twitching-status-favoritedp tweet)
-              (twitching-status-favoritedp new-tweet))
-        tweet))))
 
 (defun twitching-api-follow-screen-name (screen-name &optional unfollowp)
   "Follows twitter user with SCREEN-NAME.  If UNFOLLOWP is t,
