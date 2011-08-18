@@ -1355,30 +1355,22 @@ stored in the local filesystem.  Returns nil if
    while user
    do (let* ((key (twitching-profile-user-key user))
              (image-file (twitching-profile-user-image-file user))
-             (url (twitching-user-profile-image-url user))
-             (callback
-              (lambda (status image-file key)
-                (unwind-protect
-                    (if (cdr-assoc :error status) nil
-                      (let* ((response (buffer-string))
-                             (response (http-extract-response-body response)))
-                        (with-temp-buffer
-                          (insert response)
-                          (write-file image-file 'nil))
-                        (twitching-profile-save-image key image-file)))
-                  (kill-buffer))))
-             (cbargs (list image-file key))
-             (url-request-method "GET"))
+             (url (twitching-user-profile-image-url user)))
         (if (not (file-exists-p image-file))
-            (url-retrieve url callback cbargs)
+            (with-url-retrieve (url "GET") (response image-file key)
+              (let ((body (http-extract-response-body response)))
+                (with-temp-buffer
+                  (insert body)
+                  (write-file image-file 'nil))
+                (twitching-profile-save-image key image-file)))
           (if (not (twitching-profile-get-saved-image key))
-              (twitching-profile-save-image key image-file)))))
-  ;; start the timer again if there are more items to download
-  (if *twitching-profile-users-pending*
-      (setq *twitching-profile-timer*
-            (run-at-time "20 sec"
-                         nil
-                         #'twitching-profile-download-images))))
+              (twitching-profile-save-image key image-file))))
+   ;; start the timer again if there are more items to download
+   finally (if *twitching-profile-users-pending*
+               (setq *twitching-profile-timer*
+                     (run-at-time "20 sec"
+                                  nil
+                                  #'twitching-profile-download-images)))))
 
 (defun twitching-profile-user-key (user)
   "Given USER, return the key representation to store in
