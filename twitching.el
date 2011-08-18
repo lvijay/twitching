@@ -1335,7 +1335,7 @@ stored in the local filesystem.  Returns nil if
 
 (defun twitching-profile-get-saved-image (key)
   "Gets KEY in `*twitching-profile-user-map*'."
-  (if (not (stringp key)) (error "%s is not a valid key."))
+  (if (not (stringp key)) (error "%s is not a valid key." key))
   (let ((val (gethash key *twitching-profile-user-map*)))
     (if (eq val :no-image-p)
         nil
