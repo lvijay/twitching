@@ -190,6 +190,54 @@ takes one argument and returns the object representation."
                               `(,struct-field (preprop ,form)))))
                       fields)))))))
 
+(defmacro* with-url-retrieve ((url method &optional headers)
+                              (response &rest argnames-values)
+                              &body body)
+  "Macro wrapper around `url-retrieve' that allows writing code
+as if the URL retrieval were synchronous though it is actually
+asyncronous.
+
+URL is the url to fetch using METHOD.  HEADERS is an alist
+of (HEADER-NAME . HEADER-VALUE) pairs where both the values are
+strings.
+
+RESPONSE is the variable that will hold the response string,
+including HTTP headers.
+
+ARGNAMES-VALUES is the list of arguments that will be used when
+the HTTP response is received.  Each can be specified either as a
+list of (VARIABLE-NAME VALUE-FORM) or just a symbol
+VARIABLE-NAME.  If the first syntax is used then VALUE-FORM is
+evaluated and bound to VARIABLE-NAME.  If only a symbol is
+provided then the value is taken from the enclosing scope.
+
+BODY is not executed if the response is in error."
+  (declare (indent 2))
+  (let ((status (gensym "status"))
+        (request (gensym "request")))
+    (destructuring-bind (argnames . values)
+        (loop as argval in argnames-values
+              if (consp argval)
+                collect (first argval) into argnames and
+                collect (second argval) into values
+              else
+                collect argval into argnames and
+                collect argval into values
+              finally return (cons argnames values))
+      `(let ((url-request-method ,method)
+             (url-request-extra-headers (append url-request-extra-headers
+                                                ,headers)))
+         (declare (special url-request-extra-headers))
+         (url-retrieve ,url
+                       (lambda (,status .,argnames)
+                         (unwind-protect
+                             (if ,status
+                                 (message "Error: %S" ,status)
+                               (let ((,response (buffer-string)))
+                                 .,body))
+                           (kill-buffer)))
+                       (list .,values))))))
+
 
 ;;; struct definitions
 ;; Defines a twitter-user
