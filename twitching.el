@@ -1170,22 +1170,20 @@ then unfollows the user.  Return the HTTP status code."
   "Form an oauth request from URL with PARAMS and METHOD and
 return the response as a string."
   (let* ((url (twitching-api-form-url url params))
-         (req (make-api-twitching-oauth-request url)))
-    (setf (oauth-request-http-method req) method)
-    (oauth-sign-request-hmac-sha1 req (oauth-access-token-consumer-secret
-                                       *twitching-api-oauth-access-token*))
-    (let* ((url (oauth-request-url req))
-           (headers (oauth-request-to-header req))
-           (request-method (oauth-request-http-method req))
-           (response (url-retrieve-synchronously-as-string
-                      url headers request-method)))
-      response)))
+         (req (make-api-twitching-oauth-request url method))
+         (headers (oauth-request-to-header req))
+         (response (url-retrieve-synchronously-as-string
+                    url headers method)))
+    response))
 
-(defun make-api-twitching-oauth-request (url)
-  (oauth-make-request
-   url
-   (oauth-access-token-consumer-key *twitching-api-oauth-access-token*)
-   (oauth-access-token-auth-t *twitching-api-oauth-access-token*)))
+(defun make-api-twitching-oauth-request (url method)
+  (let* ((token *twitching-api-oauth-access-token*)
+         (req (oauth-make-request url
+                                  *twitching-api-consumer-key*
+                                  (oauth-access-token-auth-t token))))
+    (setf (oauth-request-http-method req) method)
+    (oauth-sign-request-hmac-sha1 req *twitching-api-consumer-secret*)
+    req))
 
 (defun twitching-api-request-success-p (response)
   "Returns t if RESPONSE contains \"HTTP/1.1 200 OK\""
