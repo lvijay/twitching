@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.6.0
+;;; Version: 0.7.0
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -1371,14 +1371,49 @@ GET."
                                        (append url-request-extra-headers headers)
                                      headers))
         (url-request-method (or request-method "GET"))
+        (url-mime-encoding-string "gzip")
         buffer
         response)
     (setq buffer (url-retrieve-synchronously url))
     (unwind-protect
         (with-current-buffer buffer
+          ;; check if response is gzipped and handle accordingly
+          (url-http-handle-decompression buffer)
           (setq response (buffer-string)))
       (kill-buffer buffer))
     response))
+
+(defun url-http-handle-decompression (response-buffer)
+  "Returns RESPONSE-BUFFER, decompressing its body if necessary.
+If RESPONSE-BUFFER contains the header \"Content-Encoding:
+gzip\", it is assumed that the body is gzip'd and that portion is
+gunzip'd.
+
+This function always returns the RESPONSE-BUFFER."
+  (with-current-buffer response-buffer
+    (goto-char (point-min))
+    (let* ((noerror t)
+           (header-end (progn (search-forward "\n\n" nil noerror 1) (point)))
+           (gzippedp (progn
+                       (goto-char (point-min))
+                       (search-forward-regexp "^content-encoding: *gzip$"
+                                              header-end noerror 1))))
+      (when gzippedp
+        (let ((filename (make-temp-file "response" nil ".gz"))
+              contents)
+          (unwind-protect
+              (progn
+                (write-region header-end (point-max) filename nil nil)
+                (with-auto-compression-mode
+                  (let ((buffer (find-file filename)))
+                    (setq contents (buffer-string))
+                    (kill-buffer buffer))))
+            (delete-file filename nil))
+          (with-current-buffer response-buffer
+            (delete-region header-end (point-max))
+            (goto-char header-end)
+            (insert contents))))
+      response-buffer)))
 
 (defun url-get-http-status-code (response)
   "Return the http status code in RESPONSE.  Return nil if

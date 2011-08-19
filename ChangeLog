@@ -1,3 +1,10 @@
+2011-08-20  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	v0.7.0
+
+	* twitching.el (url-http-handle-decompression):
+	support for gzipped responses.
+
 2011-08-06  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	v0.6.0
