@@ -882,12 +882,19 @@ them."
 (defun twitching-un?follow-user (screen-name unfollowp)
   (let ((action (format "%sfollow" (if unfollowp "un" ""))))
     (when (y-or-n-p (format "Going to %s '%s'.  Confirm: " action screen-name))
-      (let ((status (twitching-api-follow-screen-name screen-name unfollowp)))
-        (case status
-          (200 (message (format "%s %sed." screen-name action)))
-          (404 (message (format "%s does not exist" screen-name)))
-          (403 (message (format "Already %sing %s" action screen-name)))
-          (t (message (format "Received error code %d" status))))))))
+      (let* ((url (concat "http://api.twitter.com/1/friendships/"
+                          (if unfollowp "destroy" "create")
+                          ".json"))
+             (method (if unfollowp "DELETE" "POST"))
+             (params `(("screen_name" . ,screen-name))))
+        (with-twitching-url-retrieve (url method params)
+            (response screen-name action)
+          (let ((status (url-get-http-status-code response)))
+            (case status
+              (200 (message (format "%s %sed." screen-name action)))
+              (404 (message (format "%s does not exist" screen-name)))
+              (403 (message (format "Already %sing %s" action screen-name)))
+              (t (message (format "Received error code %d" status))))))))))
 
 (defun twitching-filter-hashtag (n point)
   "Creates a filter that filters the N-th hashtag in the tweet at
@@ -1245,19 +1252,6 @@ is GET."
             (json-array-type 'list))
         (let ((statuses (json-read-from-string response-body)))
           (mapcar #'new-twitching-status statuses))))))
-
-(defun twitching-api-follow-screen-name (screen-name &optional unfollowp)
-  "Follows twitter user with SCREEN-NAME.  If UNFOLLOWP is t,
-then unfollows the user.  Return the HTTP status code."
-  (let* ((url (concat "http://api.twitter.com/1/friendships/"
-                      (if unfollowp "destroy" "create")
-                      ".json"))
-         (method (if unfollowp "DELETE" "POST"))
-         (params `(("screen_name" . ,screen-name)))
-         (response (twitching-api-oauth-get-http-response url params "POST")))
-    ;; 200 => success
-    ;; 404 => No such user
-    (url-get-http-status-code response)))
 
 (defun twitching-api-oauth-get-http-response (url params method)
   "Form an oauth request from URL with PARAMS and METHOD and
