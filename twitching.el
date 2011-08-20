@@ -225,6 +225,7 @@ BODY is not executed if the response is in error."
                 collect argval into values
               finally return (cons argnames values))
       `(let ((url-request-method ,method)
+             (url-mime-encoding-string "gzip")
              (url-request-extra-headers (append url-request-extra-headers
                                                 ,headers)))
          (declare (special url-request-extra-headers))
@@ -233,7 +234,9 @@ BODY is not executed if the response is in error."
                          (unwind-protect
                              (if ,status
                                  (message "Error: %S" ,status)
-                               (let ((,response (buffer-string)))
+                               (let (,response)
+                                 (url-http-handle-decompression (current-buffer))
+                                 (setq ,response (buffer-string))
                                  .,body))
                            (kill-buffer)))
                        (list .,values))))))
