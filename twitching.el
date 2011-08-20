@@ -531,9 +531,16 @@ If BUFFER is not provided, (current-buffer) is assumed."
       'nil)))
 
 (defun get-twitching-tweet-bounds (point buffer)
-  "Return a list (of B LB UB) where start and end are the
-starting and ending points of POINT in BUFFER.  Return nil if
-POINT does not exist in BUFFER.
+  "Return the bounds of tweet under POINT in BUFFER.
+Specifically, returns a triple of (A LB UB) where LB and UB are
+the starting and ending points of the tweet under POINT in BUFFER
+and A is the starting bound of the previous tweet.  Return nil if
+POINT does not exist in BUFFER or if there is no tweet under
+POINT.
+
+The values of A, LB and UB are as represented by the below image
+where POINT is p.  If the tweet under POINT is the first tweet in
+BUFFER, A is nil.
 
     +------------+ +------------+ +----------+
     | prev tweet | | this tweet | |next tweet|
@@ -558,29 +565,29 @@ tweet'."
     ;;
     ;; We have the current point, p, and need to find the bounds of
     ;; `this tweet', (lb ub).  b is ending point of `prev tweet' and e
-    ;; is the starting point of `next tweet'.  There could be
-    ;; whitespace between (b c) and (d e).
+    ;; is the starting point of `next tweet'.
     ;;
-    ;; We calculate c = (n-s-p-c (p-s-p-c p 'tweet) 'tweet) and
-    ;; calculate d = (n-s-p-c p 'tweet), while taking boundary
-    ;; conditions into consideration.
+    ;; We calculate lb = (n-s-p-c (p-s-p-c p 'tweet) 'tweet) and
+    ;; calculate ub = (n-s-p-c p 'tweet).
+    ;;
+    ;; n-s-p-c and p-s-p-c are `next-single-property-change' and
+    ;; `previous-single-property-change' respectively.
     (if (twitching-status-p tweet)
         (let* ((point-max (point-max))
-               (b (previous-single-property-change p 'tweet buffer (point-min)))
-               (prev-tweet (get-text-property b 'tweet buffer))
-               ;; Below check needed because if point, `p' was in the
-               ;; middle of a tweet when this function is called, then
-               ;; b originally evalutes to `lb' and then `lb'
-               ;; evaluates into `e'.
-               (b (if (eq tweet prev-tweet)
-                      (previous-single-property-change b 'tweet buffer)
-                    b))
-               (lb (if b
-                       (next-single-property-change b 'tweet buffer point-max)
+               (a (previous-single-property-change p 'tweet buffer (point-min)))
+               (prev-tweet (get-text-property a 'tweet buffer))
+               ;; If p was in the middle of a tweet when this function
+               ;; is called, a evalutes to lb which is wrong.
+               ;; Reevaluate a
+               (a (if (eq tweet prev-tweet)
+                      (previous-single-property-change a 'tweet buffer)
+                    a))
+               (lb (if a
+                       (next-single-property-change a 'tweet buffer point-max)
                      (point-min)))
                (ub (next-single-property-change p 'tweet buffer
                                                 point-max)))
-          (list b lb ub))
+          (list a lb ub))
       'nil)))
 
 
