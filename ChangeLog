@@ -1,3 +1,12 @@
+2011-08-21  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	v0.7.1
+
+	* twitching.el (twitching-copy-tweet-status-id):
+	push the URL that represents the tweet into the
+	kill-ring.  More meaningful when trying to open the
+	tweet.
+
 2011-08-20  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	v0.7.0

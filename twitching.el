@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.7.0
+;;; Version: 0.7.1
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -946,7 +946,9 @@ time as a local time."
   "Copies the status-id of the tweet under POINT."
   (interactive "d")
   (with-tweet-under-point tweet (point)
-    (kill-new (twitching-status-id tweet))))
+    (kill-new (format "https://twitter.com/#!/%s/status/%s"
+                      (twitching-user-screen-name (twitching-status-user tweet))
+                      (twitching-status-id tweet)))))
 
 
 ;;; Grouping
