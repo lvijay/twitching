@@ -1203,6 +1203,25 @@ response or nil if there was no response."
       (let ((highest (twitching-status-id (car (last statuses)))))
         (cons statuses highest)))))
 
+(defun twitching-api-get-all-statuses (url statuses count since-id page)
+  (declare (special *twitching-api-page-limit*))
+  (let ((*twitching-api-count* count)
+        (*twitching-api-since-id* since-id)
+        (*twitching-api-page-number* page))
+    (if (< page *twitching-api-page-limit*)
+        (with-twitching-url-retrieve (url "GET" (twitching-api-get-params))
+            (response url statuses count since-id (1+ page))
+          (let ((response-body (http-extract-response-body response))
+                (json-false 'nil)
+                (json-array-type 'list))
+            (let ((tweets (json-read-from-string response-body)))
+              (if tweets
+                  (let* ((tweets (mapcar #'new-twitching-status tweets))
+                         (tweets (nconc tweets statuses)))
+                    ;; recurse...
+                    (twitching-api-get-all-statuses ...))
+                )))))))
+
 (defun twitching-api-check-keys ()
   "Checks if `*twitching-api-consumer-key*'
 `*twitching-api-consumer-secret*' `*twitching-api-access-token*'
