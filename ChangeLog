@@ -1,5 +1,14 @@
 2011-08-21  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
+	v0.7.2
+
+	* twitching.el (twitching-next-tweet): bugfix when
+	point was in the middle of a tweet, next-tweet and
+	prev-tweet would only move to the end/beginning of
+	the tweet.
+
+2011-08-21  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
 	v0.7.1
 
 	* twitching.el (twitching-copy-tweet-status-id):

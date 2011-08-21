@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.7.1
+;;; Version: 0.7.2
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -641,6 +641,7 @@ return the remaining text."
          limit
          (n (abs n))
          (buffer (current-buffer))
+         tweet
          (point (point)))
     (if plusp
         (setq direction #'next-single-property-change
@@ -648,7 +649,10 @@ return the remaining text."
         (setq direction #'previous-single-property-change
               limit (point-min)))
     (dotimes (i n)
-      (setq point (funcall direction point 'tweet buffer limit)))
+      (setq tweet (get-text-property point 'tweet buffer)
+            point (funcall direction point 'tweet buffer limit))
+      (if (and tweet (eq tweet (get-text-property point 'tweet buffer)))
+          (setq point (funcall direction point 'tweet buffer limit))))
     (goto-char point)))
 
 (defun twitching-prev-tweet (n)
