@@ -1,3 +1,12 @@
+2011-08-22  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	v0.7.3
+
+	* twitching.el (url-http-handle-decompression):
+	receiving gzipped responses was blowing up because
+	the write-encoding was not set.  It has been
+	explicitly set to `no-conversion' now.
+
 2011-08-21  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	v0.7.2

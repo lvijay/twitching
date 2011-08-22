@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.7.2
+;;; Version: 0.7.3
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -1408,7 +1408,7 @@ This function always returns the RESPONSE-BUFFER."
         (let ((filename (make-temp-file "response" nil ".gz"))
               contents)
           (unwind-protect
-              (progn
+              (let ((coding-system-for-write 'no-conversion))
                 (write-region header-end (point-max) filename nil nil)
                 (with-auto-compression-mode
                   (let ((buffer (find-file filename)))
