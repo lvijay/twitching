@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.7.4
+;;; Version: 0.7.5
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -546,6 +546,7 @@ tweet'."
     (define-key keymap (kbd "<backspace>") 'scroll-down)
     (define-key keymap (kbd "#") 'twitching-open-hashtag)
     (define-key keymap (kbd "@") 'twitching-open-mention)
+    (define-key keymap (kbd "L") 'twitching-clear-old-tweets)
     (let ((action-map (make-sparse-keymap)))
       (define-key action-map (kbd "f") 'twitching-follow-user-in-tweet)
       (define-key action-map (kbd "u") 'twitching-unfollow-user-in-tweet)
@@ -780,6 +781,17 @@ them."
           (404 (message (format "%s does not exist" screen-name)))
           (403 (message (format "Already %sing %s" action screen-name)))
           (t (message (format "Received error code %d" status))))))))
+
+(defun twitching-clear-old-tweets (point)
+  "Clears tweets above POINT."
+  (interactive "d")
+  (let ((buf (current-buffer)))
+    (with-tweet-under-point tweet (point buf)
+      (destructuring-bind (a lb ub) (get-twitching-tweet-bounds point buf)
+        (declare (ignore a ub))
+        (with-twitching-buffer buf
+          (save-excursion
+            (delete-region (point-min) lb)))))))
 
 (defun twitching-filter-hashtag (n point)
   "Creates a filter that filters the N-th hashtag in the tweet at

@@ -1,3 +1,11 @@
+2011-08-24  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	v0.7.5
+
+	* twitching.el (twitching-clear-old-tweets): added
+	support to clear already read tweets.  Helps to keep
+	the Twitching buffer small.
+
 2011-08-23  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	v0.7.4
