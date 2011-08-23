@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.7.3
+;;; Version: 0.7.4
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -1316,7 +1316,8 @@ stored in the local filesystem.  Returns nil if
                              (response (http-extract-response-body response)))
                         (with-temp-buffer
                           (insert response)
-                          (write-file image-file 'nil))
+                          (let ((coding-system-for-write 'no-conversion))
+                            (write-file image-file 'nil)))
                         (twitching-profile-save-image key image-file)))
                   (kill-buffer))))
              (cbargs (list image-file key))

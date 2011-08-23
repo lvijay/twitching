@@ -1,3 +1,11 @@
+2011-08-23  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	v0.7.4
+
+	* twitching.el (twitching-profile-download-images):
+	set coding-system-for-write to no-conversion when
+	saving profile images also.
+
 2011-08-22  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	v0.7.3
