@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.7.5
+;;; Version: 0.7.6
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -41,7 +41,7 @@
 
 ;;; Twitter constants
 (defconst +twitter-oauth-request-url+
-  "http://api.twitter.com/oauth/request_token"
+  "https://api.twitter.com/oauth/request_token"
   "Twitter's end point for the request token.")
 
 (defconst +twitter-oauth-access-url+
@@ -694,7 +694,7 @@ at 1."
   (if (zerop n)
       (with-tweet-under-point tweet ((point))
         (funcall browse-url-browser-function
-                 (concat "http://twitter.com/#!/"
+                 (concat "https://twitter.com/#!/"
                          (twitching-user-screen-name
                           (twitching-status-user tweet)))))
     (unless (twitching-open-entity (point) #'twitching-entity-mentions
@@ -1052,7 +1052,7 @@ where SCREEN_NAME is the tweeter's screen name."
   "Gets the current user's home timeline as a list of
 `twitching-status'es."
   (twitching-api-check-keys)
-  (let* ((url "http://api.twitter.com/1/statuses/home_timeline.json")
+  (let* ((url "https://api.twitter.com/1/statuses/home_timeline.json")
          (*twitching-api-count* (or *twitching-api-count* 200))
          (*twitching-api-page-limit* (or *twitching-api-page-limit* 10))
          (result (twitching-api-keep-getting-statuses url t)))
@@ -1062,7 +1062,7 @@ where SCREEN_NAME is the tweeter's screen name."
 
 (defun twitching-api-get-favorites ()
   (twitching-api-check-keys)
-  (let* ((url "http://api.twitter.com/1/favorites.json")
+  (let* ((url "https://api.twitter.com/1/favorites.json")
          (*twitching-api-count* 'nil)       ; unused for favorites
          (*twitching-api-since-id* 'nil)    ; unused for favorites
          (result (twitching-api-keep-getting-statuses url t)))
@@ -1154,7 +1154,7 @@ is GET."
   "Favorite or Unfavorite TWEET depending upon its favorited status."
   (let* ((favoritedp (twitching-status-favoritedp tweet))
          (id (twitching-status-id tweet))
-         (url (concat "http://api.twitter.com/1/favorites"
+         (url (concat "https://api.twitter.com/1/favorites"
                       (if favoritedp "/destroy/" "/create/")
                       id
                       ".json"))
@@ -1174,7 +1174,7 @@ is GET."
 (defun twitching-api-follow-screen-name (screen-name &optional unfollowp)
   "Follows twitter user with SCREEN-NAME.  If UNFOLLOWP is t,
 then unfollows the user.  Return the HTTP status code."
-  (let* ((url (concat "http://api.twitter.com/1/friendships/"
+  (let* ((url (concat "https://api.twitter.com/1/friendships/"
                       (if unfollowp "destroy" "create")
                       ".json"))
          (method (if unfollowp "DELETE" "POST"))
