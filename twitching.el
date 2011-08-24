@@ -93,8 +93,8 @@ timeline.")
   (let ((buffer (get-twitching-buffer))
         (tweets (twitching-api-get-home-timeline)))
     (twitching-write-tweets tweets buffer)
-    (when n (switch-to-buffer buffer t)))
-  (message "retrieved tweets"))
+    (when n (switch-to-buffer buffer t))
+    (message "retrieved %d tweets" (length tweets))))
 
 ;;;###autoload
 (defun twitching-show-favorites (&optional show-buffer-p)
