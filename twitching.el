@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.7.6
+;;; Version: 0.7.7
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -786,12 +786,16 @@ them."
   "Clears tweets above POINT."
   (interactive "d")
   (let ((buf (current-buffer)))
-    (with-tweet-under-point tweet (point buf)
-      (destructuring-bind (a lb ub) (get-twitching-tweet-bounds point buf)
-        (declare (ignore a ub))
-        (with-twitching-buffer buf
-          (save-excursion
-            (delete-region (point-min) lb)))))))
+    (condition-case nil
+        (with-tweet-under-point tweet (point buf)
+          (destructuring-bind (a lb ub) (get-twitching-tweet-bounds point buf)
+            (declare (ignore a ub))
+            (with-twitching-buffer buf
+              (save-excursion
+                (delete-region (point-min) lb)))))
+      (error (with-twitching-buffer buf
+               (delete-region (point-min) point)
+               (delete-blank-lines))))))
 
 (defun twitching-filter-hashtag (n point)
   "Creates a filter that filters the N-th hashtag in the tweet at
