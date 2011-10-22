@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.7.7
+;;; Version: 0.7.8
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -563,6 +563,8 @@ tweet'."
       (define-key remove-map (kbd "@") 'twitching-remove-user)
       (define-key remove-map (kbd "w") 'twitching-remove-word)
       (define-key keymap (kbd "r") remove-map))
+    (let ()
+      (define-key keymap (kbd "R") 'twitching-hard-remove-user))
     (let ((copy-map (make-sparse-keymap)))
       (define-key copy-map (kbd "@") 'twitching-copy-tweet-mention)
       (define-key copy-map (kbd "m") 'twitching-copy-tweet-mention)
@@ -897,6 +899,10 @@ in current buffer."
   (interactive "sEnter filter word: ")
   (twitching-filter-word word)
   (pop *twitching-filters*))
+
+(defun twitching-hard-remove-user (point)
+  (interactive "d")
+  (twitching-remove-user 0 point))
 
 ;;; copy methods
 (defun twitching-copy-tweet-text (point)
