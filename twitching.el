@@ -1062,7 +1062,7 @@ where SCREEN_NAME is the tweeter's screen name."
   "Gets the current user's home timeline as a list of
 `twitching-status'es."
   (twitching-api-check-keys)
-  (let* ((url "https://api.twitter.com/1/statuses/home_timeline.json")
+  (let* ((url "http://api.twitter.com/1/statuses/home_timeline.json")
          (*twitching-api-count* (or *twitching-api-count* 200))
          (*twitching-api-page-limit* (or *twitching-api-page-limit* 10))
          (result (twitching-api-keep-getting-statuses url t)))
@@ -1072,7 +1072,7 @@ where SCREEN_NAME is the tweeter's screen name."
 
 (defun twitching-api-get-favorites ()
   (twitching-api-check-keys)
-  (let* ((url "https://api.twitter.com/1/favorites.json")
+  (let* ((url "http://api.twitter.com/1/favorites.json")
          (*twitching-api-count* 'nil)       ; unused for favorites
          (*twitching-api-since-id* 'nil)    ; unused for favorites
          (result (twitching-api-keep-getting-statuses url t)))
