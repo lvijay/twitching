@@ -1202,7 +1202,9 @@ return the response as a string."
          (headers (oauth-request-to-header req))
          (response (url-retrieve-synchronously-as-string
                     url headers method)))
-    response))
+    (if (and (stringp response) (string-match-p "^HTTP/1.1 [0-9]+" response))
+        response
+      (error "Invalid response %S" response))))
 
 (defun make-api-twitching-oauth-request (url method)
   (let* ((token *twitching-api-oauth-access-token*)
