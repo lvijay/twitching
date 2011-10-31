@@ -468,9 +468,9 @@ If BUFFER is not provided, (current-buffer) is assumed."
       'nil)))
 
 (defun get-twitching-tweet-bounds (point buffer)
-  "Return a list (of B LB UB) where start and end are the
-starting and ending points of POINT in BUFFER.  Return nil if
-POINT does not exist in BUFFER.
+  "Return a list (of B LB UB) where LB and UB are the starting
+and ending points of POINT in BUFFER.  Return nil if POINT does
+not exist in BUFFER.
 
     +------------+ +------------+ +----------+
     | prev tweet | | this tweet | |next tweet|
@@ -479,7 +479,7 @@ POINT does not exist in BUFFER.
 
 a, b, lb, p, ub, e and f are all points in BUFFER representing
 the bounds of the tweets `prev tweet', 'this tweet' and `next
-tweet'."
+tweet'.  If POINT is under the first tweet, returns (nil 1 ub)."
   (let* ((tweet (get-text-property point 'tweet buffer))
          (p point))
     ;; since we're using text properties that, unlike overlays, do not
