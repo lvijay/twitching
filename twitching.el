@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.7.8
+;;; Version: 0.7.9
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -785,13 +785,14 @@ them."
           (t (message (format "Received error code %d" status))))))))
 
 (defun twitching-clear-old-tweets (point)
-  "Clears tweets above POINT."
+  "Clears tweets above POINT.
+Removes the tweet under POINT if it is at first tweet."
   (interactive "d")
   (let ((buf (current-buffer)))
     (condition-case nil
         (with-tweet-under-point tweet (point buf)
-          (destructuring-bind (a lb ub) (get-twitching-tweet-bounds point buf)
-            (declare (ignore a ub))
+          (destructuring-bind (b lb ub) (get-twitching-tweet-bounds point buf)
+            (if (null b) (setq lb ub))  ; first tweet
             (with-twitching-buffer buf
               (save-excursion
                 (delete-region (point-min) lb)))))

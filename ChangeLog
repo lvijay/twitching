@@ -1,3 +1,10 @@
+2011-10-31  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	v0.7.9
+
+	* twitching.el (twitching-clear-old-tweets): clear the first tweet
+	if that's where point is.
+
 2011-10-22  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	v0.7.8
