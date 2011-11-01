@@ -1,3 +1,10 @@
+2011-11-01  Vijay Lakshminarayanan  <laksvij@gmail.com>
+
+	v0.7.10
+
+	* twitching.el (twitching-api-oauth-get-http-response):
+	return nil if the call failed.
+
 2011-10-31  Vijay Lakshminarayanan  <laksvij@gmail.com>
 
 	v0.7.9

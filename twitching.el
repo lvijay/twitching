@@ -4,7 +4,7 @@
 ;;; Copyright (C) 2011 Vijay Lakshminarayanan
 ;;;
 ;;; Author: Vijay Lakshminarayanan <laksvij AT gmail.com>
-;;; Version: 0.7.9
+;;; Version: 0.7.10
 ;;; Created: Thu May 19 18:49:23 2011 +0530
 ;;; Keywords: twitter
 ;;; Contributors:
@@ -1154,7 +1154,7 @@ METHOD determines the http method GET or POST.  Default
 is GET."
   (let ((response (twitching-api-oauth-get-http-response
                    url params-alist (or method "GET"))))
-    (when (and (stringp response) (twitching-api-request-success-p response))
+    (when (and response (twitching-api-request-success-p response))
       (let ((response-body (http-extract-response-body response))
             (json-false 'nil)
             (json-array-type 'list))
@@ -1171,7 +1171,7 @@ is GET."
                       ".json"))
          (json-false 'nil)
          (response (twitching-api-oauth-get-http-response url nil "POST")))
-    (when (twitching-api-request-success-p response)
+    (when (and response (twitching-api-request-success-p response))
       (let* ((body (http-extract-response-body response))
              (status (json-read-from-string body))
              (new-tweet (new-twitching-status status)))
@@ -1205,7 +1205,7 @@ return the response as a string."
                     url headers method)))
     (if (and (stringp response) (string-match-p "^HTTP/1.1 [0-9]+" response))
         response
-      (error "Invalid response %S" response))))
+      nil)))
 
 (defun make-api-twitching-oauth-request (url method)
   (let* ((token *twitching-api-oauth-access-token*)
